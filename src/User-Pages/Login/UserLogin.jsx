@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import PawLogo from "../../assets/User-Page-Image/PawfectCareLogo.svg";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
+import { jwtDecode } from "jwt-decode";
 
 function UserLoginPage() {
   const [email, setEmail] = useState("");
@@ -12,62 +13,57 @@ function UserLoginPage() {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
+  const { apiClient, setToken, setUser } = useAuth();
 
   const togglePassword = () => setShowPassword(!showPassword);
 
   const validateForm = () => {
     const errors = {};
-
     if (!email) {
       errors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(email)) {
       errors.email = "Please enter a valid email";
     }
-
     if (!password) {
       errors.password = "Password is required";
     } else if (password.length < 4) {
       errors.password = "Password must be at least 6 characters";
     }
-
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setError("");
     setLoading(true);
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/users/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const res = await apiClient.post("/users/login", { email, password });
 
-      const data = await res.json();
-      setError(data.message);
-      if (!res.ok) {
-        throw new Error(data.message || "Login failed");
-      }
+      // match backend field name
+      const { access_token, user } = res.data;
 
-      // Save token & user info
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      // Redirect based on role
-      if (data.user.role === "admin") {
-        navigate("/admin/dashboard");
-      } else {
-        navigate("/user/about");
+      setToken(access_token);
+      setUser(user);
+
+      // Redirect based on user role
+      switch (user.role) {
+        case "admin":
+          navigate("/admin/dashboard");
+          break;
+        case "pet_adopter":
+        case "pet owner":
+          navigate("/user/about");
+          break;
+        default:
+          navigate("/");
+          break;
       }
     } catch (err) {
-      setError(err.message);
+      setError(err?.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -118,6 +114,7 @@ function UserLoginPage() {
                 </div>
                 <input
                   type="email"
+                  autoComplete="email"
                   className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
                     fieldErrors.email
                       ? "border-red-300 focus:ring-red-500 focus:border-red-500"
@@ -152,6 +149,7 @@ function UserLoginPage() {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   className={`w-full pl-10 pr-12 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
                     fieldErrors.password
                       ? "border-red-300 focus:ring-red-500 focus:border-red-500"

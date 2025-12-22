@@ -1,39 +1,24 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DogAndCat from "../../assets/User-Page-Image/DogAndCatImage.png";
-import UserNavigation from "../../Components/Navigation/TopNavUser";
 import Footer from "../../Components/Footer/Footer";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import PageTransition from "../../Components/PageTransition/PageTransition";
 
 function AboutUsPage() {
   const navigate = useNavigate();
+  const { apiClient, token, user, isTokenChecking } = useAuth();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.warn("Token not found. Redirecting to login...");
+    // Don't redirect until after token/auth-check is complete!
+    if (isTokenChecking) return;
+
+    console.log(isTokenChecking);
+    if (!token || !user) {
+      // navigate("/", { replace: true });
       return;
     }
-
-    fetch(`${getApiBaseUrl()}/users/me`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Failed to fetch user");
-        }
-        return res.json();
-      })
-      .catch((err) => {
-        console.error("Error fetching user:", err);
-        localStorage.removeItem("token");
-        navigate("/user/login", { replace: true });
-      });
-  }, [navigate]);
+  }, [token, user, isTokenChecking, navigate, apiClient]);
 
   const steps = [
     {

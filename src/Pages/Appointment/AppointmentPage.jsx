@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import LoadingModal from "../../Components/Modals/LoadingModal";
 import EmailSentModal from "../../Components/Modals/EmailSentModal";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 function AppointmentPage() {
   const navigate = useNavigate();
@@ -11,14 +12,12 @@ function AppointmentPage() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("token"));
-  const [loading, setLoading] = useState(false);
+  const [loadingPage, setLoadingPage] = useState(true); // for initial fetch
+  const [sendingEmail, setSendingEmail] = useState(false); // for approve/reject
   const [emailSent, setEmailSent] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleSignOut = () => {
-    localStorage.removeItem("loggedInAdmin");
-    navigate("/", { replace: true });
-  };
+  const { apiClient, logout } = useAuth();
 
   const appointmentMap = {
     Accepted: "Accepted",
@@ -28,32 +27,23 @@ function AppointmentPage() {
 
   const fetchAppointments = async () => {
     try {
-      let url = `${getApiBaseUrl()}/process/getAllAppointment`;
-
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch appointments");
-      }
-
-      const data = await res.json();
-
-      setAppointments(Array.isArray(data) ? data : []);
+      setLoadingPage(true);
+      const res = await apiClient.get("/process/getAllAppointment");
+      const data = Array.isArray(res.data)
+        ? res.data
+        : res.data?.appointments || [];
+      setAppointments(data);
     } catch (error) {
       console.error("Error fetching appointments:", error);
+      setAppointments([]);
     } finally {
-      setLoading(false);
+      setLoadingPage(false);
     }
   };
 
   useEffect(() => {
-    console.log(appointments.review);
-  }, [appointments]);
+    fetchAppointments();
+  }, [apiClient]);
 
   useEffect(() => {
     if (token) {
@@ -68,72 +58,44 @@ function AppointmentPage() {
 
   const handleApprove = async () => {
     if (!selectedAppointment) return;
-    setLoading(true);
+    setSendingEmail(true);
 
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/appointment/${
-          selectedAppointment.appointment_id
-        }/approved`,
+      await apiClient.put(
+        `/appointment/${selectedAppointment.appointment_id}/approved`,
         {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({
-            appointmentSetter: selectedAppointment.appointmentSetter,
-            email: selectedAppointment.email,
-          }),
+          appointmentSetter: selectedAppointment.appointmentSetter,
+          email: selectedAppointment.email,
         }
       );
-
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Failed to approve appointment");
-
       await fetchAppointments();
       setEmailSent(true);
     } catch (err) {
       console.error("Error approving request:", err);
     } finally {
-      setLoading(false);
+      setSendingEmail(false);
       closeModal();
     }
   };
 
   const handleReject = async () => {
     if (!selectedAppointment) return;
-    setLoading(true);
+    setSendingEmail(true);
 
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/appointment/${
-          selectedAppointment.appointment_id
-        }/rejected`,
+      await apiClient.put(
+        `/appointment/${selectedAppointment.appointment_id}/rejected`,
         {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({
-            appointmentSetter: selectedAppointment.appointmentSetter,
-            email: selectedAppointment.email,
-          }),
+          appointmentSetter: selectedAppointment.appointmentSetter,
+          email: selectedAppointment.email,
         }
       );
-
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Failed to reject appointment");
-
       await fetchAppointments();
       setEmailSent(true);
     } catch (err) {
       console.error("Error rejecting request:", err);
     } finally {
-      setLoading(false);
+      setSendingEmail(false);
       closeModal();
     }
   };
@@ -173,7 +135,7 @@ function AppointmentPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-screen-2xl mx-auto">
-        <TopNavAdmin handleSignOut={handleSignOut} />
+        <TopNavAdmin handleSignOut={logout} />
 
         {/* Page Header with Stats */}
         <div className="px-6 mb-6">
@@ -273,7 +235,33 @@ function AppointmentPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredAppointments.length === 0 ? (
+                  {loadingPage ? (
+                    // skeleton rows while fetching
+                    <>
+                      {[1, 2, 3, 4].map((i) => (
+                        <tr key={i} className="animate-pulse">
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-32 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-24 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-20 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-28 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-5 w-20 bg-gray-200 rounded-full" />
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="h-4 w-16 bg-gray-200 rounded ml-auto" />
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  ) : filteredAppointments.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
@@ -529,13 +517,7 @@ function AppointmentPage() {
           </div>
         )}
       </div>
-
-      <LoadingModal isOpen={loading} message="Sending email..." />
-      <EmailSentModal
-        isOpen={emailSent}
-        message="Appointment status has been sent successfully."
-        onClose={() => setEmailSent(false)}
-      />
+      <LoadingModal isOpen={sendingEmail} message="Sending email..." />
     </div>
   );
 }

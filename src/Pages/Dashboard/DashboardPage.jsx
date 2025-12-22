@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -12,46 +12,21 @@ function DashboardPage() {
   const [scheduledAppointments, setScheduledAppointments] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const handleSignOut = () => {
-    localStorage.removeItem("token");
-    navigate("/", { replace: true });
-  };
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/admin/dashboard", { replace: true });
-    }
-  }, [navigate]);
-
-  const fetchWithAuth = async (url, options = {}) => {
-    const token = localStorage.getItem("token");
-    if (!token) throw new Error("No token found");
-
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        ...(options.headers || {}),
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-    return res.json();
-  };
+  const { apiClient, logout } = useAuth();
 
   useEffect(() => {
     async function fetchDashboardData() {
       try {
         setLoading(true);
-        const [users, adoptions, appts] = await Promise.all([
-          fetchWithAuth(`${getApiBaseUrl()}/dashboard/user/count`),
-          fetchWithAuth(`${getApiBaseUrl()}/dashboard/user/adoption/count`),
-          fetchWithAuth(`${getApiBaseUrl()}/dashboard/user/appointment/count`),
+        const [usersRes, adoptionsRes, apptsRes] = await Promise.all([
+          apiClient.get("/dashboard/user/count"),
+          apiClient.get("/dashboard/user/adoption/count"),
+          apiClient.get("/dashboard/user/appointment/count"),
         ]);
-        setUserCount(users.count || 0);
-        setPendingAdoptions(adoptions.count || 0);
-        setScheduledAppointments(appts.count || 0);
+
+        setUserCount(usersRes.data.count || 0);
+        setPendingAdoptions(adoptionsRes.data.count || 0);
+        setScheduledAppointments(apptsRes.data.count || 0);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
       } finally {
@@ -60,7 +35,7 @@ function DashboardPage() {
     }
 
     fetchDashboardData();
-  }, []);
+  }, [apiClient]);
 
   const stats = [
     {
@@ -125,7 +100,7 @@ function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-screen-2xl mx-auto">
-        <TopNavAdmin handleSignOut={handleSignOut} />
+        <TopNavAdmin handleSignOut={logout} />
 
         {/* Main Content Container */}
         <div className="px-8 pb-8">

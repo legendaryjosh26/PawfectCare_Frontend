@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { redirect, useNavigate } from "react-router-dom";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
 import NotificationModal from "../../Components/Modals/NotificationModal";
 import LoadingOverlay from "../../Components/Modals/LoadingOverlay"; // <-- new import
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
+import AddressAutocomplete from "../../Components/Hooks/AddressAutoComplete/AddressAutoComplete";
 
 function UserRegistrationPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -21,6 +22,8 @@ function UserRegistrationPage() {
     confirmPassword: "",
     role: "pet owner",
   });
+
+  const { apiClient } = useAuth();
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({
     isOpen: false,
@@ -66,31 +69,29 @@ function UserRegistrationPage() {
     }
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/users/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          role: "pet owner",
-        }),
+      const response = await apiClient.post("/users/register", {
+        ...formData,
+        role: "pet owner",
       });
-
-      const data = await response.json();
-
-      if (!response.ok) throw new Error(data.message || "Registration failed");
 
       setNotification({
         isOpen: true,
         type: "success",
         message: "Registration Complete!",
-        redirectTo: "/user/login",
+        redirectTo: "/",
       });
     } catch (err) {
+      // Axios error handling
+      const message =
+        err.response?.data?.message || err.message || "Registration failed";
+
       setNotification({
         isOpen: true,
         type: "error",
-        message: err.message,
+        message,
+        redirectTo: "",
       });
+      console.log(err);
     } finally {
       setLoading(false);
     }
@@ -238,14 +239,11 @@ function UserRegistrationPage() {
               <label className="block text-sm font-medium text-amber-900 mb-2">
                 Address
               </label>
-              <input
-                type="text"
-                name="address"
+              <AddressAutocomplete
                 value={formData.address}
-                onChange={handleChange}
-                placeholder="Enter your address"
-                className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
-                required
+                onChange={(val) =>
+                  setFormData((prev) => ({ ...prev, address: val }))
+                }
               />
             </div>
           </div>
@@ -259,6 +257,7 @@ function UserRegistrationPage() {
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
+                autoComplete="new-password"
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Create a password"
@@ -284,6 +283,7 @@ function UserRegistrationPage() {
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 name="confirmPassword"
+                autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="Re-enter your password"

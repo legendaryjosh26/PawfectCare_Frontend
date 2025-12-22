@@ -2,15 +2,16 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import PawfectCareLogo from "../../assets/User-Page-Image/PawfectCareLogo.svg";
 import { ChevronDown, LogOut } from "lucide-react";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
+import { useAuth } from "../ServiceLayer/Context/authContext";
 
 const TopNavUser = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [loading, setLoading] = useState(false);
+
+  const { user, setUser, apiClient, logout, isTokenChecking } = useAuth();
 
   const delayedNavigate = (path) => {
     setLoading(true);
@@ -32,24 +33,17 @@ const TopNavUser = () => {
       .join(" ");
   };
 
+  // Fetch user info from API if not already available
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      if (user !== null) setUser(null);
-      return;
-    }
+    if (isTokenChecking) return; // Wait for context to finish initial check!
 
-    fetch(`${getApiBaseUrl()}/users/me`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((data) => setUser(data))
-      .catch(() => {
-        localStorage.removeItem("token");
-        setUser(null);
-      });
-  }, []);
+    if (!user) {
+      apiClient
+        .get("/users/me")
+        .then((response) => setUser(response.data.value || response.data))
+        .catch(() => setUser(null));
+    }
+  }, [user, apiClient, setUser, isTokenChecking]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -62,10 +56,8 @@ const TopNavUser = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
+    logout();
     setIsDropdownOpen(false);
-    navigate("/", { replace: true });
   };
 
   return (
@@ -199,7 +191,7 @@ const TopNavUser = () => {
               {/* Sign In / Sign Out */}
               {isGuest ? (
                 <button
-                  onClick={() => delayedNavigate("/user/login")}
+                  onClick={() => delayedNavigate("/")}
                   className="w-full px-4 py-3 text-left text-[#7c5e3b] font-semibold hover:bg-amber-50 border-t border-amber-100"
                 >
                   Sign In

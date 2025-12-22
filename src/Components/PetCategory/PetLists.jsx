@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
-
+import { useAuth } from "../ServiceLayer/Context/authContext";
 // Skeleton Loading Component
 const PetCardSkeleton = () => (
   <div className="bg-white shadow-md rounded-lg p-2 sm:p-3 md:p-4 animate-pulse">
@@ -19,56 +18,44 @@ function PetLists({ selectedCategory, onLoadingChange }) {
   const [fadeOut, setFadeOut] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
   const navigate = useNavigate();
+  const { apiClient } = useAuth();
 
   useEffect(() => {
     const fetchPets = async () => {
       try {
-        // Start fade out animation
         setFadeOut(true);
         setLoading(true);
         setError(null);
-        onLoadingChange?.(true); // Notify parent about loading state
+        onLoadingChange?.(true);
 
-        // Wait for fade out to complete
         await new Promise((resolve) => setTimeout(resolve, 200));
 
-        let url = `${getApiBaseUrl()}/pets/getAllPets`;
-
+        let url = `/pets/getAllPets`;
         if (selectedCategory !== "All") {
-          url = `${getApiBaseUrl()}/pets/${selectedCategory}`;
+          url = `/pets/${selectedCategory}`;
         }
 
-        const res = await fetch(url, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        // Use apiClient (handles JWT from context, no localStorage)
+        const res = await apiClient.get(url);
+        setPets(Array.isArray(res.data) ? res.data : []);
 
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-
-        const data = await res.json();
-        setPets(Array.isArray(data) ? data : []);
-
-        // Reset fade states and start fade in
         setFadeOut(false);
         setTimeout(() => setFadeIn(true), 50);
       } catch (error) {
         console.error("Error fetching pets:", error);
-        setError(error.message);
+        setError(error.message || "Error loading pets");
         setPets([]);
         setFadeOut(false);
       } finally {
         setLoading(false);
-        onLoadingChange?.(false); // Notify parent about loading completion
+        onLoadingChange?.(false);
       }
     };
 
     setFadeIn(false);
     fetchPets();
-  }, [selectedCategory, onLoadingChange]);
+    // eslint-disable-next-line
+  }, [selectedCategory, onLoadingChange, apiClient]);
 
   if (loading) {
     return (

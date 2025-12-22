@@ -3,7 +3,7 @@ import Delete from "../../assets/Pet-Page-Image/Delete.svg";
 import Edit from "../../assets/Pet-Page-Image/Edit.svg";
 import { useNavigate } from "react-router-dom";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import NotificationModal from "../../Components/Modals/NotificationModal";
 
 function PetPage() {
@@ -15,6 +15,7 @@ function PetPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [petToDelete, setPetToDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loadingPets, setLoadingPets] = useState(true);
   const [notification, setNotification] = useState({
     isOpen: false,
     type: "",
@@ -35,26 +36,7 @@ function PetPage() {
     imageFile: null,
   });
 
-  const handleSignOut = () => {
-    localStorage.removeItem("loggedInAdmin");
-    navigate("/user/login", { replace: true });
-  };
-
-  const fetchWithAuth = async (url, options = {}) => {
-    const token = localStorage.getItem("token");
-    if (!token) throw new Error("No token found");
-
-    const defaultHeaders = {
-      Authorization: `Bearer ${token}`,
-    };
-
-    const res = await fetch(url, {
-      ...options,
-      headers: { ...defaultHeaders, ...(options.headers || {}) },
-    });
-
-    return res.json();
-  };
+  const { apiClient, logout } = useAuth();
 
   useEffect(() => {
     fetchPets();
@@ -62,12 +44,16 @@ function PetPage() {
 
   const fetchPets = async () => {
     try {
-      const data = await fetchWithAuth(`${getApiBaseUrl()}/pets/getAllPets`);
+      setLoadingPets(true);
+      const res = await apiClient.get("/pets/getAllPets");
+      const data = res.data;
       if (Array.isArray(data)) setPets(data);
       else if (Array.isArray(data.pets)) setPets(data.pets);
       else setPets([]);
     } catch (err) {
       console.error("Error fetching pets:", err);
+    } finally {
+      setLoadingPets(false);
     }
   };
 
@@ -98,16 +84,12 @@ function PetPage() {
       };
 
       const url = editingPet
-        ? `${getApiBaseUrl()}/pets/updatePet/${editingPet.pet_id}`
-        : `${getApiBaseUrl()}/pets/addPet`;
+        ? `/pets/updatePet/${editingPet.pet_id}`
+        : `/pets/addPet`;
 
-      const method = editingPet ? "PUT" : "POST";
+      const method = editingPet ? "put" : "post";
 
-      await fetchWithAuth(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      await apiClient[method](url, payload); // POST/PUT via instance[web:18]
 
       await fetchPets();
       closeForm();
@@ -135,13 +117,9 @@ function PetPage() {
     if (!petToDelete) return;
 
     try {
-      const data = await fetchWithAuth(
-        `${getApiBaseUrl()}/pets/deletePet/${petToDelete.pet_id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      // keep PUT if your backend uses PUT for soft delete
+      const res = await apiClient.put(`/pets/deletePet/${petToDelete.pet_id}`); // or .delete if your route is DELETE[web:31]
+      const data = res.data;
 
       if (data.success) {
         setPets((prev) =>
@@ -272,7 +250,7 @@ function PetPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-screen-2xl mx-auto">
-        <TopNavAdmin handleSignOut={handleSignOut} />
+        <TopNavAdmin handleSignOut={logout} />
 
         {/* Page Header with Search and Add Button */}
         <div className="px-6 mb-6">
@@ -367,7 +345,47 @@ function PetPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredPets.length === 0 ? (
+                  {loadingPets ? (
+                    <>
+                      {[1, 2, 3, 4].map((i) => (
+                        <tr key={i} className="animate-pulse">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-12 h-12 rounded-lg bg-gray-200" />
+                              <div className="h-4 w-24 bg-gray-200 rounded" />
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-20 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-16 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-16 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-16 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-16 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-4 w-32 bg-gray-200 rounded" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="h-5 w-20 bg-gray-200 rounded-full" />
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end space-x-3">
+                              <div className="h-8 w-8 bg-gray-200 rounded-lg" />
+                              <div className="h-8 w-8 bg-gray-200 rounded-lg" />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  ) : filteredPets.length === 0 ? (
                     <tr>
                       <td
                         colSpan="9"

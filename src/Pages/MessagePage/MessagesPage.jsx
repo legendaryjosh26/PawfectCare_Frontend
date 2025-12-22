@@ -1,205 +1,272 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useRef } from "react";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
-
-function getInitials(name = "User") {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
-}
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
+import { socket } from "../../Components/Hooks/socket";
 
 function MessagesPage() {
-  const navigate = useNavigate();
+  const { apiClient, logout, user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [reply, setReply] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const messagesEndRef = useRef(null);
 
-  const admin = JSON.parse(localStorage.getItem("loggedInAdmin"));
-  const adminId = admin?.user_id;
-
-  const handleSignOut = () => {
-    localStorage.removeItem("loggedInAdmin");
-    navigate("/user/login", { replace: true });
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Load conversation previews
-  const loadConversations = async () => {
-    try {
-      const res = await fetch(
-        `${getApiBaseUrl()}/chat/conversations/${adminId}`
-      );
-      if (!res.ok) throw new Error("Failed to load conversations");
-      const data = await res.json();
+  useEffect(scrollToBottom, [messages]);
 
-      setConversations(
-        data.map((conv) => ({
-          ...conv,
-          messages: conv.messages || [], // always ensure messages array
-        }))
+  useEffect(() => {
+    console.log("Current user in MessagesPage:", user);
+    fetchConversations();
+  }, [apiClient, user]);
+
+  // fetch all conversations (one per user)
+  const fetchConversations = async () => {
+    try {
+      setLoadingConversations(true);
+      // const res = await apiClient.get("/conversations");
+      const res = await apiClient.get("/conversations").catch((e) => {
+        console.log("status:", e.response?.status, "data:", e.response?.data);
+        throw e;
+      });
+      setConversations(Array.isArray(res.data) ? res.data : []);
+
+      console.log(
+        "apiClient config test",
+        await apiClient.get("/conversations", { validateStatus: () => true })
       );
     } catch (err) {
-      console.error("Error loading conversations:", err);
+      console.error("Fetch conversations error:", err);
+      setConversations([]);
+    } finally {
+      setLoadingConversations(false);
     }
   };
 
-  // Socket register + live updates
+  // fetch messages for the selected conversation
+  const fetchMessages = async (conversationId) => {
+    try {
+      setLoadingMessages(true);
+      const res = await apiClient.get(
+        `/conversations/${conversationId}/messages`
+      );
+      setMessages(Array.isArray(res.data) ? res.data : []);
+      // optional: mark as read
+      await apiClient.post(`/conversations/${conversationId}/read`);
+    } catch (err) {
+      console.error("Fetch messages error:", err);
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
   useEffect(() => {
-    if (!adminId) return;
+    fetchConversations();
+  }, [apiClient]);
 
-    socket.emit("register", { userId: adminId });
+  const handleSelectConversation = (conv) => {
+    setSelectedConversation(conv);
+    fetchMessages(conv.conversation_id);
 
-    socket.on("receiveMessage", (message) => {
-      const userId =
-        message.senderId === adminId ? message.receiverId : message.senderId;
+    // join room for this conversation
+    socket.emit("join_conversation", conv.conversation_id);
 
-      setConversations((prev) => {
-        const idx = prev.findIndex((c) => c.userId === userId);
-
-        if (idx >= 0) {
-          const updated = [...prev];
-          updated[idx] = {
-            ...updated[idx],
-            messages: [...updated[idx].messages, message],
-            lastMessageAt: message.createdAt,
-            status: selectedConversation?.userId === userId ? "Read" : "Unread",
-          };
-          return updated;
-        } else {
-          return [
-            ...prev,
-            {
-              userId,
-              userName: "Unknown",
-              messages: [message],
-              lastMessageAt: message.createdAt,
-              status: "Unread",
-            },
-          ];
-        }
+    // remove previous listener, then add new one for this conversation
+    socket.off("new_message");
+    socket.on("new_message", (msg) => {
+      if (msg.conversation_id !== conv.conversation_id) return;
+      setMessages((prev) => {
+        const exists = prev.some((m) => m.message_id === msg.message_id);
+        if (exists) return prev;
+        return [...prev, msg];
       });
-
-      // Update open chat window
-      if (
-        selectedConversation &&
-        (message.senderId === selectedConversation.userId ||
-          message.receiverId === selectedConversation.userId)
-      ) {
-        setSelectedConversation((prev) => ({
-          ...prev,
-          messages: [...prev.messages, message],
-        }));
-      }
     });
-
-    return () => socket.off("receiveMessage");
-  }, [adminId, selectedConversation]);
-
-  // Load conversations on page load
-  useEffect(() => {
-    if (adminId) loadConversations();
-  }, [adminId]);
-
-  // Open full conversation history
-  const openConversation = async (conv) => {
-    try {
-      const res = await fetch(
-        `${getApiBaseUrl()}/chat/history/${conv.userId}/${adminId}`
-      );
-      if (!res.ok) throw new Error("Failed to load history");
-      const history = await res.json();
-
-      setSelectedConversation({
-        ...conv,
-        messages: history,
-      });
-
-      // Mark as read
-      if (conv.status === "Unread") {
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.userId === conv.userId ? { ...c, status: "Read" } : c
-          )
-        );
-      }
-    } catch (err) {
-      console.error("Error loading history:", err);
-    }
   };
 
-  // Send message
-  const sendReply = async () => {
-    if (!reply.trim() || !selectedConversation) return;
-
-    const newMsg = {
-      senderId: adminId,
-      receiverId: selectedConversation.userId,
-      message: reply.trim(),
+  useEffect(() => {
+    return () => {
+      socket.off("new_message");
     };
+  }, []);
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedConversation) return;
+
+    const content = newMessage.trim();
+    setNewMessage("");
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/chat/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMsg),
-      });
-      if (!res.ok) throw new Error("Failed to send message");
-      await res.json();
-      setReply(""); // socket will push the update
+      await apiClient.post(
+        `/conversations/${selectedConversation.conversation_id}/messages`,
+        { content }
+      );
+      // do NOT push to messages here; socket "new_message" will add it once
     } catch (err) {
-      console.error("Error sending message:", err);
+      console.error("Send message error:", err);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-screen-2xl mx-auto">
-        <TopNavAdmin handleSignOut={handleSignOut} />
+        <TopNavAdmin handleSignOut={logout} />
 
-        {/* Conversation list */}
-        <div className="bg-white rounded-md shadow divide-y divide-gray-200">
-          {conversations.length === 0 ? (
-            <p className="text-center p-6 text-gray-500">No messages yet.</p>
-          ) : (
-            conversations.map((conv) => {
-              const lastMsg =
-                conv.messages[conv.messages.length - 1]?.message || "";
-              const lastDate = conv.lastMessageAt
-                ? new Date(conv.lastMessageAt).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
+        <div className="px-6 py-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex h-[70vh]">
+            {/* Left: Conversation list */}
+            <div className="w-1/3 border-r border-gray-200 flex flex-col">
+              <div className="px-4 py-3 border-b">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Messages
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Conversations with users
+                </p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {loadingConversations ? (
+                  <div className="p-4 text-xs text-gray-500">Loading...</div>
+                ) : conversations.length === 0 ? (
+                  <div className="p-4 text-xs text-gray-500">
+                    No conversations yet.
+                  </div>
+                ) : (
+                  conversations.map((c) => {
+                    const fullName = `${c.first_name || ""} ${
+                      c.last_name || ""
+                    }`.trim();
+                    const isActive =
+                      selectedConversation?.conversation_id ===
+                      c.conversation_id;
+
+                    return (
+                      <button
+                        key={c.conversation_id}
+                        onClick={() => handleSelectConversation(c)}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                          isActive ? "bg-gray-100" : ""
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">
+                            {fullName || `User #${c.user_id}`}
+                          </span>
+                          {c.last_message_at && (
+                            <span className="text-[11px] text-gray-400">
+                              {new Date(c.last_message_at).toLocaleTimeString(
+                                "en-US",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        {c.last_message_preview && (
+                          <p className="mt-1 text-xs text-gray-500 truncate">
+                            {c.last_message_preview}
+                          </p>
+                        )}
+                      </button>
+                    );
                   })
-                : "";
+                )}
+              </div>
+            </div>
 
-              return (
-                <button
-                  key={conv.userId}
-                  onClick={() => openConversation(conv)}
-                  className={`flex items-center w-full p-4 text-left hover:bg-gray-50 focus:outline-none ${
-                    conv.status === "Unread" ? "bg-blue-50 font-semibold" : ""
-                  }`}
-                >
-                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center mr-4 text-lg font-bold select-none">
-                    {getInitials(conv.userName)}
+            {/* Right: Messages in selected conversation */}
+            <div className="flex-1 flex flex-col">
+              {selectedConversation ? (
+                <>
+                  <div className="px-4 py-3 border-b flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {`${selectedConversation.first_name || ""} ${
+                          selectedConversation.last_name || ""
+                        }`.trim() || `User #${selectedConversation.user_id}`}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Conversation ID: {selectedConversation.conversation_id}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-grow overflow-hidden">
-                    <p className="truncate text-gray-900">
-                      {conv.userName || conv.userId}
-                    </p>
-                    <p className="truncate text-gray-600 text-sm">{lastMsg}</p>
+
+                  <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                    {loadingMessages ? (
+                      <p className="text-xs text-gray-500">Loading messages…</p>
+                    ) : messages.length === 0 ? (
+                      <p className="text-xs text-gray-500">
+                        No messages yet. Start the conversation.
+                      </p>
+                    ) : (
+                      messages.map((m) => {
+                        const isAdmin = m.sender_role === "admin";
+
+                        return (
+                          <div
+                            key={m.message_id}
+                            className={`flex ${
+                              isAdmin ? "justify-end" : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-[75%] px-3 py-2 text-xs rounded-2xl ${
+                                isAdmin
+                                  ? "bg-[#560705] text-white rounded-br-sm"
+                                  : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                              }`}
+                            >
+                              {m.content}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                    <div ref={messagesEndRef} />
                   </div>
-                  <div className="ml-4 text-xs text-gray-400 whitespace-nowrap select-none">
-                    {lastDate}
-                  </div>
-                </button>
-              );
-            })
-          )}
+
+                  <form
+                    onSubmit={handleSend}
+                    className="border-t px-4 py-3 flex space-x-2"
+                  >
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type a message..."
+                      className="flex-1 text-sm px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#560705]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newMessage.trim()}
+                      className="px-4 py-2 bg-[#560705] text-white text-sm font-semibold rounded-lg disabled:opacity-50"
+                    >
+                      Send
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-500">
+                    Select a conversation from the left to start chatting.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* sendingEmail modal is only for ChatWidget / actions, not needed here unless you want it */}
+      {/* <LoadingModal isOpen={sendingEmail} message="Sending message..." /> */}
     </div>
   );
 }

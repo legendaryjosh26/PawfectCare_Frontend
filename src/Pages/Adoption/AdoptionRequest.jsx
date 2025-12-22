@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import EmailSentModal from "../../Components/Modals/EmailSentModal";
 import LoadingModal from "../../Components/Modals/LoadingModal";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 function AdoptionRequest() {
   const navigate = useNavigate();
@@ -14,30 +14,15 @@ function AdoptionRequest() {
   const [emailSent, setEmailSent] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleSignOut = () => {
-    localStorage.removeItem("loggedInAdmin");
-    navigate("/", { replace: true });
-  };
+  const { apiClient, logout } = useAuth();
 
   const fetchRequests = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `${getApiBaseUrl()}/dashboard/user/adoption/detail`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await apiClient.get("/dashboard/user/adoption/detail");
+      // adjust shape if your backend wraps data
+      const raw = Array.isArray(res.data) ? res.data : res.data?.requests || [];
 
-      if (!res.ok) {
-        throw new Error("Failed to fetch adoption requests");
-      }
-
-      const data = await res.json();
-      const formatted = data.map((item) => ({
+      const formatted = raw.map((item) => ({
         id: item.adoption_id,
         pet_id: item.pet_id,
         user_id: item.user_id,
@@ -53,6 +38,7 @@ function AdoptionRequest() {
       setRequests(formatted);
     } catch (err) {
       console.error("Error fetching adoption requests:", err);
+      setRequests([]);
     }
   };
 
@@ -65,31 +51,21 @@ function AdoptionRequest() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/adoption/${selectedRequest.id}/adoptionApproved`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({
-            adopterName: selectedRequest.adopterName,
-            email: selectedRequest.email,
-            petName: selectedRequest.petName,
-          }),
-        }
-      );
-
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Failed to approve adoption");
+      await apiClient.put(`/adoption/${selectedRequest.id}/adoptionApproved`, {
+        adopterName: selectedRequest.adopterName,
+        email: selectedRequest.email,
+        petName: selectedRequest.petName,
+      });
 
       await fetchRequests();
       setEmailSent(true);
     } catch (err) {
       console.error("Error approving request:", err);
-      alert(err.message);
+      const msg =
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to approve adoption";
+      alert(msg);
     } finally {
       setLoading(false);
       closeModal();
@@ -101,31 +77,19 @@ function AdoptionRequest() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/adoption/${selectedRequest.id}/adoptionRejected`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({
-            adopterName: selectedRequest.adopterName,
-            email: selectedRequest.email,
-            petName: selectedRequest.petName,
-          }),
-        }
-      );
-
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Failed to reject adoption");
+      await apiClient.put(`/adoption/${selectedRequest.id}/adoptionRejected`, {
+        adopterName: selectedRequest.adopterName,
+        email: selectedRequest.email,
+        petName: selectedRequest.petName,
+      });
 
       await fetchRequests();
       setEmailSent(true);
     } catch (err) {
       console.error("Error rejecting request:", err);
-      alert(err.message);
+      const msg =
+        err.response?.data?.error || err.message || "Failed to reject adoption";
+      alert(msg);
     } finally {
       setLoading(false);
       closeModal();
@@ -164,7 +128,7 @@ function AdoptionRequest() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-screen-2xl mx-auto">
-        <TopNavAdmin handleSignOut={handleSignOut} />
+        <TopNavAdmin handleSignOut={logout} />
 
         {/* Page Header with Stats */}
         <div className="px-6 mb-6">

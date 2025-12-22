@@ -1,24 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import UserNavigation from "../../Components/Navigation/TopNavUser";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import AdoptionBanner from "../../assets/User-Page-Image/AdoptionBanner.png";
 import PetGroup from "../../assets/User-Page-Image/PetGroup.svg";
 import AdoptionConfirmationModal from "../../Components/Modals/AdoptionConfirmationModal";
 import ChatWidget from "../../Components/ChatWidget/ChatWidget";
 import CategoryButtons from "../../Components/PetCategory/CategoryButtons";
 import PetLists from "../../Components/PetCategory/PetLists";
-import PageTransition from "../../Components/PageTransition/PageTransition";
 
 function AdoptionPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [showAdoptionModal, setShowAdoptionModal] = useState(false);
 
   // Default category is "All"
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedPet, setSelectedPet] = useState(null);
 
-  const token = localStorage.getItem("token");
+  const { token } = useAuth();
 
   useEffect(() => {
     if (location.state?.showAdoptionConfirmation) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
 import NotificationModal from "../../Components/Modals/NotificationModal";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 function AdoptionForm() {
   const navigate = useNavigate();
@@ -18,41 +18,30 @@ function AdoptionForm() {
   const [formData, setFormData] = useState({
     purpose: "",
   });
-
-  const token = localStorage.getItem("token");
-
-  // Fetch pet information
-  useEffect(() => {
-    if (pet_id) {
-      fetchPetInfo();
-    }
-  }, [pet_id]);
-
-  const fetchPetInfo = async () => {
-    try {
-      const res = await fetch(`${getApiBaseUrl()}/pets/pet/${pet_id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPetInfo(data);
-      }
-    } catch (error) {
-      console.error("Error fetching pet info:", error);
-    }
-  };
+  const { apiClient, token } = useAuth();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+  console.log(pet_id);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!token) {
       setNotification({
         isOpen: true,
         type: "error",
         message: "You need to sign in to adopt a pet!",
-        redirectTo: "/user/login",
+        redirectTo: "/",
+      });
+      return;
+    }
+
+    if (!pet_id) {
+      setNotification({
+        isOpen: true,
+        type: "error",
+        message: "Missing pet information. Please go back and select a pet.",
       });
       return;
     }
@@ -60,25 +49,14 @@ function AdoptionForm() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/process/adoption`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          pet_id,
-          purpose_of_adoption: formData.purpose,
-        }),
+      await apiClient.post("/process/adoption", {
+        pet_id,
+        purpose_of_adoption: formData.purpose,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to submit adoption request");
-      }
-
-      navigate("/user/adoption", { state: { showAdoptionConfirmation: true } });
+      navigate("/user/adoption", {
+        state: { showAdoptionConfirmation: true },
+      });
     } catch (error) {
       console.error("Error submitting adoption request:", error);
       setNotification({

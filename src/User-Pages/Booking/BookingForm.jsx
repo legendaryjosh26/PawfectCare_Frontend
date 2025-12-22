@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BookingConfirmationModal from "../../Components/Modals/BookingConfirmationModal";
-import { getApiBaseUrl } from "../../../../Backend/config/API_BASE_URL";
 import NotificationModal from "../../Components/Modals/NotificationModal";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 function BookingForm() {
   const [formData, setFormData] = useState({
@@ -20,12 +20,14 @@ function BookingForm() {
     message: "",
     redirectTo: "",
   });
+
+  const { apiClient, token } = useAuth();
   const navigate = useNavigate();
 
-  // Get today's date for minimum date validation
+  // today's date for minimum date validation
   const today = new Date().toISOString().split("T")[0];
 
-  // Available time slots
+  // backend time slots in 24h, display as 12h
   const timeSlots = [
     "08:00",
     "08:30",
@@ -62,10 +64,21 @@ function BookingForm() {
     },
   ];
 
+  const formatTime12h = (time24) => {
+    if (!time24) return "";
+    const [h, m] = time24.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    return d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -87,56 +100,37 @@ function BookingForm() {
 
     if (!validateForm()) return;
 
+    if (!token) {
+      setNotification({
+        isOpen: true,
+        type: "error",
+        message: "You must be logged in to book an appointment.",
+        redirectTo: "/user/login",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setNotification({
-          isOpen: true,
-          type: "error",
-          message: "You must be logged in to book an appointment.",
-          redirectTo: "/user/login",
-        });
-        return;
-      }
-
-      const response = await fetch(`${getApiBaseUrl()}/users/booking`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          appointment_type: formData.service,
-          appointment_date: formData.date,
-          timeschedule: formData.time,
-        }),
+      await apiClient.post("/users/booking", {
+        appointment_type: formData.service,
+        appointment_date: formData.date,
+        timeschedule: formData.time, // still 24h string
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setShowModal(true);
-        setTimeout(() => {
-          setShowModal(false);
-          navigate("/user/booking");
-        }, 3000);
-      } else {
-        setNotification({
-          isOpen: true,
-          type: "error",
-          message: "Failed to create booking. Please sign in and try again.",
-          redirectTo: "/user/login",
-        });
-      }
+      setShowModal(true);
+      setTimeout(() => {
+        setShowModal(false);
+        navigate("/user/booking");
+      }, 3000);
     } catch (error) {
       console.error("Error creating booking:", error);
       setNotification({
         isOpen: true,
         type: "error",
-        message: "Server error. Please try again later.",
+        message: "Failed to create booking. Please sign in and try again.",
+        redirectTo: "/user/login",
       });
     } finally {
       setLoading(false);
@@ -256,7 +250,7 @@ function BookingForm() {
                         : "bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700"
                     }`}
                   >
-                    {time}
+                    {formatTime12h(time)}
                   </button>
                 ))}
               </div>
@@ -294,7 +288,8 @@ function BookingForm() {
                     {new Date(formData.date).toLocaleDateString()}
                   </p>
                   <p>
-                    <span className="font-semibold">Time:</span> {formData.time}
+                    <span className="font-semibold">Time:</span>{" "}
+                    {formatTime12h(formData.time)}
                   </p>
                 </div>
               </div>
@@ -326,6 +321,7 @@ function BookingForm() {
           </p>
         </div>
       </div>
+
       <NotificationModal
         isOpen={notification.isOpen}
         onClose={() => setNotification({ ...notification, isOpen: false })}
@@ -333,6 +329,7 @@ function BookingForm() {
         message={notification.message}
         redirectTo={notification.redirectTo}
       />
+
       <BookingConfirmationModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
