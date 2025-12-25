@@ -84,10 +84,7 @@ function UserLoginPage() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl mb-4 shadow-lg">
               <span className="text-2xl">
-                <img
-                  src="\src\assets\User-Page-Image\PawfectCareLogo.svg"
-                  alt="paw"
-                />
+                <img src={PawLogo} alt="Pawfect Care logo" />
               </span>
             </div>
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
