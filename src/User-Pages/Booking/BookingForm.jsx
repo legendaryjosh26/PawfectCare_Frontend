@@ -1,12 +1,43 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import BookingConfirmationModal from "../../Components/Modals/BookingConfirmationModal";
 import NotificationModal from "../../Components/Modals/NotificationModal";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 function BookingForm() {
+  const location = useLocation();
+  const preselectedService = location.state?.preselectedService || "";
+
+  // ===== HOLIDAYS (PH 2025 nationwide) =====
+  const HOLIDAYS = [
+    "2025-01-01",
+    "2025-04-09",
+    "2025-04-17",
+    "2025-04-18",
+    "2025-05-01",
+    "2025-06-12",
+    "2025-08-25",
+    "2025-11-30",
+    "2025-12-25",
+    "2025-12-30",
+    "2025-01-29",
+    "2025-04-19",
+    "2025-08-21",
+    "2025-11-01",
+    "2025-12-08",
+    "2025-12-24",
+    "2025-12-31",
+  ];
+
+  const isWeekend = (dateStr) => {
+    const day = new Date(dateStr).getDay();
+    return day === 0 || day === 6;
+  };
+
+  const isHoliday = (dateStr) => HOLIDAYS.includes(dateStr);
+
   const [formData, setFormData] = useState({
-    service: "",
+    service: preselectedService,
     date: "",
     time: "",
   });
@@ -24,8 +55,40 @@ function BookingForm() {
   const { apiClient, token } = useAuth();
   const navigate = useNavigate();
 
-  // today's date for minimum date validation
   const today = new Date().toISOString().split("T")[0];
+
+  // ===== booked times for selected date =====
+  const [bookedTimes, setBookedTimes] = useState([]);
+
+  useEffect(() => {
+    const isValidIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(formData.date);
+    if (!isValidIsoDate) {
+      setBookedTimes([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      const fetchAvailability = async () => {
+        try {
+          const res = await apiClient.get(
+            "/process/appointments/availability",
+            {
+              params: { date: formData.date },
+            }
+          );
+          const booked = res.data?.booked || [];
+          setBookedTimes(booked); // e.g. ["08:00","09:30"]
+        } catch (err) {
+          console.error("Failed to load availability", err);
+          setBookedTimes([]);
+        }
+      };
+
+      fetchAvailability();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.date, apiClient]); // [web:74]
 
   // backend time slots in 24h, display as 12h
   const timeSlots = [
@@ -62,6 +125,14 @@ function BookingForm() {
       icon: "💉",
       duration: "15-30 minutes",
     },
+    {
+      value: "General",
+      label: "General",
+      description:
+        "General visit that can include consultation and vaccination as needed",
+      icon: "🐾",
+      duration: "30-60 minutes",
+    },
   ];
 
   const formatTime12h = (time24) => {
@@ -78,6 +149,28 @@ function BookingForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "date") {
+      if (isWeekend(value)) {
+        setErrors((prev) => ({
+          ...prev,
+          date: "Weekends are not available. Please choose a weekday.",
+        }));
+        setFormData((prev) => ({ ...prev, date: "" }));
+        return;
+      }
+      if (isHoliday(value)) {
+        setErrors((prev) => ({
+          ...prev,
+          date: "This date is a Philippine holiday. Please choose another available day.",
+        }));
+        setFormData((prev) => ({ ...prev, date: "" }));
+        return;
+      }
+      // on new date, clear selected time
+      setFormData((prev) => ({ ...prev, time: "" }));
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
@@ -88,7 +181,18 @@ function BookingForm() {
     const newErrors = {};
 
     if (!formData.service) newErrors.service = "Please select a service";
-    if (!formData.date) newErrors.date = "Please select a date";
+
+    if (!formData.date) {
+      newErrors.date = "Please select a date";
+    } else {
+      if (isWeekend(formData.date)) {
+        newErrors.date = "Weekends are not available. Please choose a weekday.";
+      } else if (isHoliday(formData.date)) {
+        newErrors.date =
+          "Selected date is a Philippine holiday. Please choose another date.";
+      }
+    }
+
     if (!formData.time) newErrors.time = "Please select a time";
 
     setErrors(newErrors);
@@ -116,7 +220,7 @@ function BookingForm() {
       await apiClient.post("/users/booking", {
         appointment_type: formData.service,
         appointment_date: formData.date,
-        timeschedule: formData.time, // still 24h string
+        timeschedule: formData.time, // 24h string
       });
 
       setShowModal(true);
@@ -163,11 +267,17 @@ function BookingForm() {
                 {services.map((service) => (
                   <div
                     key={service.value}
-                    className={`relative cursor-pointer border-2 rounded-2xl p-6 transition-all duration-300 ${
-                      formData.service === service.value
-                        ? "border-indigo-500 bg-indigo-50 shadow-lg"
-                        : "border-gray-200 hover:border-indigo-300 hover:shadow-md"
-                    }`}
+                    className={`relative cursor-pointer border-2 rounded-2xl p-6 transition-all duration-300
+                      ${
+                        service.value === "General"
+                          ? "md:col-span-2 md:justify-self-center md:max-w-sm"
+                          : ""
+                      }
+                      ${
+                        formData.service === service.value
+                          ? "border-indigo-500 bg-indigo-50 shadow-lg"
+                          : "border-gray-200 hover:border-indigo-300 hover:shadow-md"
+                      }`}
                     onClick={() =>
                       handleChange({
                         target: { name: "service", value: service.value },
@@ -237,22 +347,34 @@ function BookingForm() {
                 Select Time
               </label>
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                {timeSlots.map((time) => (
-                  <button
-                    key={time}
-                    type="button"
-                    onClick={() =>
-                      handleChange({ target: { name: "time", value: time } })
-                    }
-                    className={`py-3 px-4 text-sm font-semibold rounded-xl transition-all duration-300 ${
-                      formData.time === time
-                        ? "bg-indigo-600 text-white shadow-lg transform scale-105"
-                        : "bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700"
-                    }`}
-                  >
-                    {formatTime12h(time)}
-                  </button>
-                ))}
+                {timeSlots.map((time) => {
+                  const isBooked = bookedTimes.includes(time);
+                  const isSelected = formData.time === time;
+
+                  return (
+                    <button
+                      key={time}
+                      type="button"
+                      disabled={isBooked}
+                      onClick={() =>
+                        !isBooked &&
+                        handleChange({
+                          target: { name: "time", value: time },
+                        })
+                      }
+                      className={`py-3 px-4 text-sm font-semibold rounded-xl transition-all duration-300
+                        ${
+                          isBooked
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed line-through"
+                            : isSelected
+                            ? "bg-indigo-600 text-white shadow-lg transform scale-105"
+                            : "bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700"
+                        }`}
+                    >
+                      {formatTime12h(time)}
+                    </button>
+                  );
+                })}
               </div>
               {errors.time && (
                 <p className="text-red-500 text-sm mt-2">{errors.time}</p>
@@ -329,7 +451,6 @@ function BookingForm() {
         message={notification.message}
         redirectTo={notification.redirectTo}
       />
-
       <BookingConfirmationModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}

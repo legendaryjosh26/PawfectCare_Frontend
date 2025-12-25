@@ -3,6 +3,9 @@ import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import { socket } from "../../Components/Hooks/socket";
 
+const TYPING_TIMEOUT_MS = 2000;
+let adminTypingTimeout = null;
+
 function MessagesPage() {
   const { apiClient, logout, user } = useAuth();
   const [conversations, setConversations] = useState([]);
@@ -11,6 +14,7 @@ function MessagesPage() {
   const [newMessage, setNewMessage] = useState("");
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [isUserTyping, setIsUserTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -20,25 +24,17 @@ function MessagesPage() {
   useEffect(scrollToBottom, [messages]);
 
   useEffect(() => {
-    console.log("Current user in MessagesPage:", user);
     fetchConversations();
   }, [apiClient, user]);
 
-  // fetch all conversations (one per user)
   const fetchConversations = async () => {
     try {
       setLoadingConversations(true);
-      // const res = await apiClient.get("/conversations");
       const res = await apiClient.get("/conversations").catch((e) => {
         console.log("status:", e.response?.status, "data:", e.response?.data);
         throw e;
       });
       setConversations(Array.isArray(res.data) ? res.data : []);
-
-      console.log(
-        "apiClient config test",
-        await apiClient.get("/conversations", { validateStatus: () => true })
-      );
     } catch (err) {
       console.error("Fetch conversations error:", err);
       setConversations([]);
@@ -47,7 +43,6 @@ function MessagesPage() {
     }
   };
 
-  // fetch messages for the selected conversation
   const fetchMessages = async (conversationId) => {
     try {
       setLoadingMessages(true);
@@ -55,8 +50,13 @@ function MessagesPage() {
         `/conversations/${conversationId}/messages`
       );
       setMessages(Array.isArray(res.data) ? res.data : []);
-      // optional: mark as read
       await apiClient.post(`/conversations/${conversationId}/read`);
+      // optional optimistic update
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.sender_id !== user?.user_id ? { ...m, is_read: 1 } : m
+        )
+      );
     } catch (err) {
       console.error("Fetch messages error:", err);
       setMessages([]);
@@ -65,10 +65,6 @@ function MessagesPage() {
     }
   };
 
-  useEffect(() => {
-    fetchConversations();
-  }, [apiClient]);
-
   const handleSelectConversation = (conv) => {
     setSelectedConversation(conv);
     fetchMessages(conv.conversation_id);
@@ -76,8 +72,10 @@ function MessagesPage() {
     // join room for this conversation
     socket.emit("join_conversation", conv.conversation_id);
 
-    // remove previous listener, then add new one for this conversation
     socket.off("new_message");
+    socket.off("typing");
+    socket.off("stop_typing");
+
     socket.on("new_message", (msg) => {
       if (msg.conversation_id !== conv.conversation_id) return;
       setMessages((prev) => {
@@ -86,13 +84,60 @@ function MessagesPage() {
         return [...prev, msg];
       });
     });
+
+    socket.on("typing", (data) => {
+      if (data.conversationId !== conv.conversation_id) return;
+      if (data.sender_role === "pet owner") {
+        setIsUserTyping(true);
+      }
+    });
+
+    socket.on("stop_typing", (data) => {
+      if (data.conversationId !== conv.conversation_id) return;
+      if (data.sender_role === "pet owner") {
+        setIsUserTyping(false);
+      }
+    });
+
+    // optional: listen for messages_read to flip is_read on my last message
+    socket.on("messages_read", (data) => {
+      if (data.conversationId !== conv.conversation_id) return;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.sender_id === user?.user_id ? { ...m, is_read: 1 } : m
+        )
+      );
+    });
   };
 
   useEffect(() => {
     return () => {
       socket.off("new_message");
+      socket.off("typing");
+      socket.off("stop_typing");
+      socket.off("messages_read");
     };
   }, []);
+
+  const handleAdminInputChange = (e) => {
+    const value = e.target.value;
+    setNewMessage(value);
+
+    if (!selectedConversation) return;
+
+    socket.emit("typing", {
+      conversationId: selectedConversation.conversation_id,
+      sender_role: "admin",
+    });
+
+    if (adminTypingTimeout) clearTimeout(adminTypingTimeout);
+    adminTypingTimeout = setTimeout(() => {
+      socket.emit("stop_typing", {
+        conversationId: selectedConversation.conversation_id,
+        sender_role: "admin",
+      });
+    }, TYPING_TIMEOUT_MS);
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -106,11 +151,21 @@ function MessagesPage() {
         `/conversations/${selectedConversation.conversation_id}/messages`,
         { content }
       );
-      // do NOT push to messages here; socket "new_message" will add it once
+      // new message will arrive via "new_message"
     } catch (err) {
       console.error("Send message error:", err);
     }
   };
+
+  const getLastAdminMessageId = () => {
+    const adminMessages = messages.filter(
+      (m) => m.sender_role === "admin" || m.sender_id === user?.user_id
+    );
+    if (adminMessages.length === 0) return null;
+    return adminMessages[adminMessages.length - 1].message_id;
+  };
+
+  const lastAdminMessageId = getLastAdminMessageId();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -158,17 +213,6 @@ function MessagesPage() {
                           <span className="text-sm font-medium text-gray-900">
                             {fullName || `User #${c.user_id}`}
                           </span>
-                          {c.last_message_at && (
-                            <span className="text-[11px] text-gray-400">
-                              {new Date(c.last_message_at).toLocaleTimeString(
-                                "en-US",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </span>
-                          )}
                         </div>
                         {c.last_message_preview && (
                           <p className="mt-1 text-xs text-gray-500 truncate">
@@ -193,9 +237,6 @@ function MessagesPage() {
                           selectedConversation.last_name || ""
                         }`.trim() || `User #${selectedConversation.user_id}`}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        Conversation ID: {selectedConversation.conversation_id}
-                      </p>
                     </div>
                   </div>
 
@@ -208,28 +249,55 @@ function MessagesPage() {
                       </p>
                     ) : (
                       messages.map((m) => {
-                        const isAdmin = m.sender_role === "admin";
+                        const isAdmin =
+                          m.sender_role === "admin" ||
+                          m.sender_id === user?.user_id;
+
+                        const isLastAdmin =
+                          isAdmin && m.message_id === lastAdminMessageId;
 
                         return (
-                          <div
-                            key={m.message_id}
-                            className={`flex ${
-                              isAdmin ? "justify-end" : "justify-start"
-                            }`}
-                          >
+                          <div key={m.message_id} className="space-y-1">
+                            {/* bubble */}
                             <div
-                              className={`max-w-[75%] px-3 py-2 text-xs rounded-2xl ${
-                                isAdmin
-                                  ? "bg-[#560705] text-white rounded-br-sm"
-                                  : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                              className={`flex ${
+                                isAdmin ? "justify-end" : "justify-start"
                               }`}
                             >
-                              {m.content}
+                              <div
+                                className={`max-w-[75%] px-3 py-2 text-xs rounded-2xl ${
+                                  isAdmin
+                                    ? "bg-[#560705] text-white rounded-br-sm"
+                                    : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                                }`}
+                              >
+                                {m.content}
+                              </div>
                             </div>
+
+                            {/* bottom: Sent / Seen aligned with sender side */}
+                            {isLastAdmin && (
+                              <div
+                                className={`flex ${
+                                  isAdmin ? "justify-end" : "justify-start"
+                                }`}
+                              >
+                                <span className="text-[10px] text-gray-400">
+                                  {m.is_read ? "Seen" : "Sent"}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         );
                       })
                     )}
+
+                    {isUserTyping && (
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        User is typing…
+                      </p>
+                    )}
+
                     <div ref={messagesEndRef} />
                   </div>
 
@@ -240,7 +308,7 @@ function MessagesPage() {
                     <input
                       type="text"
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      onChange={handleAdminInputChange}
                       placeholder="Type a message..."
                       className="flex-1 text-sm px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#560705]"
                     />
@@ -264,9 +332,6 @@ function MessagesPage() {
           </div>
         </div>
       </div>
-
-      {/* sendingEmail modal is only for ChatWidget / actions, not needed here unless you want it */}
-      {/* <LoadingModal isOpen={sendingEmail} message="Sending message..." /> */}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 // src/components/LocationIqAutocomplete.jsx
 import { useEffect, useState } from "react";
 import axios from "axios";
+import NotificationModal from "../../Modals/NotificationModal";
 
 const ALLOWED_MUNICIPALITIES = [
   "Tacurong",
@@ -21,7 +22,12 @@ const API_KEY = import.meta.env.VITE_LOCATIONIQ_KEY;
 
 export default function AddressAutoComplete({ value, onChange }) {
   const [suggestions, setSuggestions] = useState([]);
-
+  const [notification, setNotification] = useState({
+    isOpen: false,
+    type: "",
+    message: "",
+    redirectTo: "",
+  });
   useEffect(() => {
     if (!value || value.length < 3) {
       setSuggestions([]);
@@ -67,7 +73,11 @@ export default function AddressAutoComplete({ value, onChange }) {
     const inAllowedMunicipality = city && ALLOWED_MUNICIPALITIES.includes(city);
 
     if (!inSultanKudarat || !inAllowedMunicipality) {
-      alert("Please choose an address within Sultan Kudarat only.");
+      setNotification({
+        isOpen: true,
+        type: "error",
+        message: "Available within Tacurong City only.",
+      });
       return;
     }
 
@@ -99,6 +109,13 @@ export default function AddressAutoComplete({ value, onChange }) {
           ))}
         </ul>
       )}
+      <NotificationModal
+        isOpen={notification.isOpen}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+        type={notification.type}
+        message={notification.message}
+        redirectTo={notification.redirectTo}
+      />
     </div>
   );
 }

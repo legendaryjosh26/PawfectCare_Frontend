@@ -126,10 +126,10 @@ function AppointmentPage() {
     (a) => a.review === "Pending"
   ).length;
   const approvedCount = appointments.filter(
-    (a) => a.review === "Approve"
+    (a) => a.review === "Accepted"
   ).length;
   const rejectedCount = appointments.filter(
-    (a) => a.review === "Reject"
+    (a) => a.review === "Rejected"
   ).length;
 
   return (
@@ -313,12 +313,12 @@ function AppointmentPage() {
                           {appt.appointment_type}
                         </td>
                         <td className="px-6 py-4">
-                          {appt.review === "Approve" && (
+                          {appt.review === "Accepted" && (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               Approved
                             </span>
                           )}
-                          {appt.review === "Reject" && (
+                          {appt.review === "Rejected" && (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                               Rejected
                             </span>

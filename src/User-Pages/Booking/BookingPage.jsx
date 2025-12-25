@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import BookingPoster from "../../assets/User-Page-Image/BookingPoster.png";
 import consultation from "../../assets/User-Page-Image/consultation.svg";
 import deworm from "../../assets/User-Page-Image/deworm.svg";
@@ -9,10 +8,10 @@ import PageTransition from "../../Components/PageTransition/PageTransition";
 
 function BookingPage() {
   const navigate = useNavigate();
-  const [loadingUser, setLoadingUser] = useState(true);
 
   const services = [
     {
+      key: "Consultation",
       icon: consultation,
       title: "Consultation",
       description:
@@ -22,6 +21,17 @@ function BookingPage() {
       iconBg: "bg-amber-100",
     },
     {
+      key: "General",
+      icon: consultation, // change icon if you have a dedicated one
+      title: "General",
+      description:
+        "General visit that may include both consultation and vaccination.",
+      color: "from-green-500 to-emerald-600",
+      bgColor: "bg-emerald-50",
+      iconBg: "bg-emerald-100",
+    },
+    {
+      key: "Vaccination",
       icon: deworm,
       title: "Vaccination",
       description:
@@ -139,12 +149,17 @@ function BookingPage() {
               </p>
             </div>
 
-            {/* Services Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
+            {/* Services Row: Consultation | General | Vaccination */}
+            <div className="flex flex-col md:flex-row justify-center items-stretch gap-8 max-w-5xl mx-auto mb-16">
               {services.map((service, index) => (
                 <div
                   key={index}
-                  className="group bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-[#7c5e3b]/30 transform hover:-translate-y-2"
+                  onClick={() =>
+                    navigate("/user/booking-form", {
+                      state: { preselectedService: service.key },
+                    })
+                  }
+                  className="flex-1 max-w-sm mx-auto group bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-[#7c5e3b]/30 transform hover:-translate-y-2 cursor-pointer"
                 >
                   <div
                     className={`h-2 bg-gradient-to-r ${service.color}`}
@@ -199,7 +214,11 @@ function BookingPage() {
                   veterinarians are here to help.
                 </p>
                 <button
-                  onClick={() => navigate("/user/booking-form")}
+                  onClick={() =>
+                    navigate("/user/booking-form", {
+                      state: { preselectedService: "" },
+                    })
+                  }
                   className="bg-white text-[#7c5e3b] px-10 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-lg inline-flex items-center"
                 >
                   <svg

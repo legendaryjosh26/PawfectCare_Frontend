@@ -22,6 +22,13 @@ function UserRegistrationPage() {
     confirmPassword: "",
     role: "pet owner",
   });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const { apiClient } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -60,39 +67,77 @@ function UserRegistrationPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+
+    if (!acceptedTerms) {
+      setError("You must agree to the Terms & Agreement before continuing.");
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match!");
-      setLoading(false);
       return;
     }
 
     try {
-      const response = await apiClient.post("/users/register", {
-        ...formData,
-        role: "pet owner",
+      setIsSendingOtp(true);
+      setLoading(true); // button goes into loading state
+      await apiClient.post("/users/otp/send-registration-otp", {
+        email: formData.email,
+        userName: `${formData.first_name} ${formData.last_name}`,
       });
 
-      setNotification({
-        isOpen: true,
-        type: "success",
-        message: "Registration Complete!",
-        redirectTo: "/",
-      });
+      // 2) Open OTP modal
+      setShowOtpModal(true);
     } catch (err) {
-      // Axios error handling
       const message =
-        err.response?.data?.message || err.message || "Registration failed";
-
+        err.response?.data?.message || err.message || "Failed to send OTP";
+      console.error("handleSubmit OTP error:", err); // <--
       setNotification({
         isOpen: true,
         type: "error",
         message,
         redirectTo: "",
       });
-      console.log(err);
     } finally {
+      setIsSendingOtp(false);
+      setLoading(false); // stop button loading once OTP request finishes
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otp.trim().length !== 6) {
+      setError("Please enter the 6-digit OTP.");
+      return;
+    }
+
+    try {
+      setIsVerifyingOtp(true);
+      setLoading(true); // button loading while final register runs
+
+      await apiClient.post("/users/otp/verify-registration-otp", {
+        email: formData.email,
+        code: otp,
+      });
+
+      await apiClient.post("/users/register", {
+        ...formData,
+        role: "pet owner",
+      });
+
+      setShowOtpModal(false);
+      setNotification({
+        isOpen: true,
+        type: "success",
+        message: "Registration complete!",
+        redirectTo: "/",
+      });
+    } catch (err) {
+      const message =
+        err.response?.data?.message || err.message || "Invalid or expired OTP";
+      console.error("handleVerifyOtp error:", err); // <--
+      setError(message);
+    } finally {
+      setIsVerifyingOtp(false);
       setLoading(false);
     }
   };
@@ -300,6 +345,29 @@ function UserRegistrationPage() {
             </div>
           </div>
 
+          {/* Terms & Agreement */}
+          <div className="w-full flex justify-center mt-2">
+            <div className="flex items-center gap-2">
+              <input
+                id="terms"
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="h-4 w-4 text-[#a16f4a] border-amber-300 rounded"
+              />
+              <label htmlFor="terms" className="text-sm text-gray-700">
+                I agree to the{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="text-[#a16f4a] font-semibold underline"
+                >
+                  Terms & Agreement
+                </button>
+              </label>
+            </div>
+          </div>
+
           {/* Error Message */}
           {error && (
             <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
@@ -320,7 +388,7 @@ function UserRegistrationPage() {
           <p className="text-center text-sm text-gray-600 mt-4">
             Already have an account?{" "}
             <span
-              onClick={() => navigate("/user/login")}
+              onClick={() => navigate("/")}
               className="text-[#a16f4a] font-semibold hover:underline cursor-pointer"
             >
               Log in here
@@ -335,6 +403,220 @@ function UserRegistrationPage() {
         message={notification.message}
         redirectTo={notification.redirectTo}
       />
+
+      {showTermsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6 md:p-8 shadow-xl">
+            <h2 className="text-2xl font-semibold text-amber-900 mb-2 text-center">
+              Pawfect Care — Terms & Agreement
+            </h2>
+
+            <p className="text-center text-xs text-gray-500 mb-4">
+              Last Updated: March 2025
+            </p>
+
+            <div className="space-y-4 text-sm text-gray-700 text-justify">
+              {/* Intro */}
+              <p>
+                By creating an account or using the Pawfect Care: Web-Based Pet
+                Adoption and Pet Care Management System, you agree to the
+                following Terms and Privacy Guidelines. Please read them
+                carefully.
+              </p>
+
+              {/* 2. Information We Collect */}
+              <div>
+                <h3 className="font-semibold text-amber-900 mb-1">
+                  2. Information We Collect
+                </h3>
+                <p className="mb-1">
+                  To provide these services, Pawfect Care may collect the
+                  following information:
+                </p>
+
+                <p className="font-semibold mt-1">2.1 Personal Information</p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li>Full Name</li>
+                  <li>Email Address</li>
+                  <li>Date of Birth</li>
+                  <li>Gender</li>
+                  <li>Address</li>
+                  <li>Monthly Income</li>
+                </ul>
+
+                <p className="font-semibold mt-2">2.2 System Use Information</p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li>Login details</li>
+                  <li>Submitted adoption applications</li>
+                  <li>Appointment schedules</li>
+                </ul>
+
+                <p className="font-semibold mt-2">2.3 Pet Information</p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li>Pet details provided by the administrator</li>
+                </ul>
+              </div>
+
+              {/* 3. How Your Information is Used */}
+              <div>
+                <h3 className="font-semibold text-amber-900 mb-1">
+                  3. How Your Information is Used
+                </h3>
+                <p className="mb-1">
+                  Your information will only be used for the following purposes:
+                </p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li>To process your adoption applications</li>
+                  <li>To schedule consultations and vaccinations</li>
+                  <li>To send notifications regarding your appointments</li>
+                  <li>
+                    To assist the administrator in managing and updating records
+                  </li>
+                  <li>
+                    To generate daily system reports (without showing sensitive
+                    information)
+                  </li>
+                </ul>
+                <p className="mt-2">
+                  Pawfect Care does not sell, trade, or share your information
+                  with outside organizations.
+                </p>
+              </div>
+
+              {/* 4. Data Protection & Security */}
+              <div>
+                <h3 className="font-semibold text-amber-900 mb-1">
+                  4. Data Protection & Security
+                </h3>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li>
+                    All stored information is kept confidential and protected
+                    within the system.
+                  </li>
+                  <li>
+                    Access to user data is limited to authorized administrators.
+                  </li>
+                  <li>
+                    Pawfect Care applies security measures to prevent
+                    unauthorized access or data misuse.
+                  </li>
+                </ul>
+              </div>
+
+              {/* 5. User Responsibilities */}
+              <div>
+                <h3 className="font-semibold text-amber-900 mb-1">
+                  5. User Responsibilities
+                </h3>
+                <p className="mb-1">By using the system, you agree to:</p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li>Provide accurate and truthful information</li>
+                  <li>Keep your login details confidential</li>
+                  <li>
+                    Use the platform responsibly and only for its intended
+                    purpose
+                  </li>
+                  <li>Update your information when necessary</li>
+                </ul>
+              </div>
+
+              {/* 6. Your Rights */}
+              <div>
+                <h3 className="font-semibold text-amber-900 mb-1">
+                  6. Your Rights
+                </h3>
+                <p className="mb-1">Users have the right to:</p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li>Access and review their personal information</li>
+                  <li>Request corrections to inaccurate details</li>
+                  <li>Withdraw from the system at any time</li>
+                </ul>
+              </div>
+
+              {/* 7. Consent */}
+              <div>
+                <h3 className="font-semibold text-amber-900 mb-1">
+                  7. Consent
+                </h3>
+                <p className="mb-1">
+                  By clicking “I Agree”, you acknowledge that:
+                </p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li>
+                    You have read and understood the Terms and Privacy Agreement
+                  </li>
+                  <li>
+                    You consent to the collection and use of your information as
+                    described
+                  </li>
+                  <li>You agree to comply with the system’s policies</li>
+                </ul>
+              </div>
+
+              {/* 8. Changes to the Terms */}
+              <div>
+                <h3 className="font-semibold text-amber-900 mb-1">
+                  8. Changes to the Terms
+                </h3>
+                <p>
+                  Pawfect Care may update these Terms and Privacy Agreement as
+                  needed. Users will be notified when changes occur.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
+            <h2 className="text-xl font-semibold text-amber-900 mb-2">
+              Verify your email
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              We sent a 6-digit verification code to{" "}
+              <span className="font-semibold">{formData.email}</span>. Enter it
+              below to complete your registration.
+            </p>
+
+            <input
+              type="text"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+              className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl text-center tracking-[0.5em] text-lg font-semibold mb-3"
+              placeholder="••••••"
+            />
+
+            <div className="flex justify-end gap-2 mt-2">
+              <button
+                onClick={() => setShowOtpModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm"
+                disabled={isVerifyingOtp}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVerifyOtp}
+                disabled={isVerifyingOtp}
+                className="px-4 py-2 rounded-lg bg-[#a16f4a] text-white text-sm font-semibold hover:bg-amber-900 disabled:opacity-60"
+              >
+                {isVerifyingOtp ? "Verifying..." : "Verify"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <LoadingOverlay loading={loading} />
     </div>

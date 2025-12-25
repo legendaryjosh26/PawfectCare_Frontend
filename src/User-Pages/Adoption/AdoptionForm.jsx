@@ -59,11 +59,25 @@ function AdoptionForm() {
       });
     } catch (error) {
       console.error("Error submitting adoption request:", error);
-      setNotification({
-        isOpen: true,
-        type: "error",
-        message: "Failed to submit adoption request. Please try again.",
-      });
+
+      // ---- handle 403 UNDERAGE from backend ----
+      if (error.response && error.response.status === 403) {
+        setNotification({
+          isOpen: true,
+          type: "error",
+          message:
+            error.response.data?.message ||
+            "You must be at least 18 years old to submit an adoption request.",
+          redirectTo: "/user/adoption", // or maybe "/user/profile" if you want
+        });
+      } else {
+        setNotification({
+          isOpen: true,
+          type: "error",
+          message:
+            "Failed to submit adoption request. Please try again or contact support.",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
