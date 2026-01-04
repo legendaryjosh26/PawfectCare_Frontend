@@ -1,168 +1,230 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import PawfectCareLogo from "../../assets/User-Page-Image/PawfectCareLogo.svg";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
-import AdoptionBanner from "../../assets/User-Page-Image/AdoptionBanner.png";
-import PetGroup from "../../assets/User-Page-Image/PetGroup.svg";
-import AdoptionConfirmationModal from "../../Components/Modals/AdoptionConfirmationModal";
-import ChatWidget from "../../Components/ChatWidget/ChatWidget";
-import CategoryButtons from "../../Components/PetCategory/CategoryButtons";
-import PetLists from "../../Components/PetCategory/PetLists";
 
-function AdoptionPage() {
-  const location = useLocation();
-  const [showAdoptionModal, setShowAdoptionModal] = useState(false);
+function ForgotPasswordPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const email = searchParams.get("email") || "";
+  const { apiClient } = useAuth(); // Only use apiClient, no token needed for forgot password
 
-  // Default category is "All"
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedPet, setSelectedPet] = useState(null);
+  const [otpModal, setOtpModal] = useState(false);
+  const [formData, setFormData] = useState({
+    email: email || "",
+    otp: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const { token } = useAuth();
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
-  useEffect(() => {
-    if (location.state?.showAdoptionConfirmation) {
-      setShowAdoptionModal(true);
-      const timer = setTimeout(() => setShowAdoptionModal(false), 2000);
-      window.history.replaceState({}, document.title);
-      return () => clearTimeout(timer);
+  const requestOtp = async (e) => {
+    e.preventDefault();
+    if (!formData.email) return setMessage("Email required");
+
+    setLoading(true);
+    setMessage("");
+    try {
+      const response = await apiClient.post("/users/forgot-password", {
+        email: formData.email,
+      });
+      setMessage("OTP sent! Check your email (120s validity).");
+      setOtpModal(true);
+    } catch (err) {
+      setMessage(
+        err.response?.data?.message || "Failed to send OTP. Try again."
+      );
     }
-  }, [location]);
+    setLoading(false);
+  };
+
+  const verifyOtpAndReset = async (e) => {
+    e.preventDefault();
+    if (formData.newPassword !== formData.confirmPassword) {
+      return setMessage("Passwords don't match!");
+    }
+    if (formData.newPassword.length < 6) {
+      return setMessage("Password must be 6+ characters");
+    }
+
+    setLoading(true);
+    setMessage("");
+    try {
+      await apiClient.post("/users/verify-forgot-otp-reset", {
+        email: formData.email,
+        code: formData.otp,
+        newPassword: formData.newPassword,
+      });
+      setMessage("Password reset successful! Redirecting to login...");
+      setTimeout(() => navigate("/"), 2000);
+    } catch (err) {
+      setMessage(
+        err.response?.data?.message || "OTP invalid/expired. Request new code."
+      );
+    }
+    setLoading(false);
+  };
 
   return (
-    <>
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-        {/* Hero Banner Section */}
-        <div className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#7c5e3b]/40 via-[#7c5e3b]/20 to-transparent z-10"></div>
-          <img
-            src={AdoptionBanner}
-            alt="Adoption Campaign Banner"
-            className="w-full h-auto object-cover"
-          />
-        </div>
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Adoption Features */}
-          <section className="py-12 md:py-16">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="bg-white rounded-2xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow duration-300">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg
-                    className="w-8 h-8 text-green-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Safe & Secure
-                </h3>
-                <p className="text-gray-600">
-                  All pets are health-checked and vaccinated
-                </p>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow duration-300">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg
-                    className="w-8 h-8 text-blue-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Easy Process
-                </h3>
-                <p className="text-gray-600">
-                  Simple adoption process with full support
-                </p>
-              </div>
-              <div className="bg-white rounded-2xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow duration-300">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg
-                    className="w-8 h-8 text-purple-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Lifetime Support
-                </h3>
-                <p className="text-gray-600">
-                  We're here to help throughout your pet's life
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Pet Category Section */}
-          <section className="px-4 sm:px-6 py-8 sm:py-12 max-w-7xl mx-auto mt-8 sm:mt-12">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-8 sm:mb-12 text-center">
-              Available Pets for Adoption
-            </h2>
-
-            {/*Pass token to CategoryButtons */}
-            <CategoryButtons
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              token={token}
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#fdfaf6]">
+      <div className="relative z-10 w-full max-w-sm space-y-6 bg-white/90 backdrop-blur-md shadow-xl rounded-2xl p-8">
+        {/* Logo + Title */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 text-3xl font-semibold text-[#a16f4a]">
+            <img
+              src={PawfectCareLogo}
+              alt="Pawfect Care Logo"
+              className="w-10 h-10"
             />
+            Pawfect Care
+          </div>
+          <p className="text-gray-600 mt-2 text-sm">
+            {otpModal ? "Enter OTP to reset password" : "Reset your password"}
+          </p>
+        </div>
 
-            {/* Pet Group Image */}
-            {!selectedCategory && (
-              <div className="flex justify-center -mt-20 sm:-mt-32 md:-mt-48 mb-8 sm:mb-12">
-                <img
-                  src={PetGroup}
-                  alt="Group of pets illustration"
-                  className="w-full max-w-xs sm:max-w-md md:max-w-2xl h-auto"
+        {/* Messages */}
+        {message && (
+          <div
+            className={`p-3 rounded-lg text-sm ${
+              message.startsWith("")
+                ? "bg-green-100 border border-green-300 text-green-800"
+                : "bg-red-100 border border-red-300 text-red-800"
+            }`}
+          >
+            {message}
+          </div>
+        )}
+
+        {/* Request OTP Form */}
+        {!otpModal && (
+          <form onSubmit={requestOtp} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="your@email.com"
+                className="w-full px-4 py-3 rounded-full border-2 border-[#a16f4a]/30 focus:border-[#a16f4a] focus:ring-2 focus:ring-amber-200/50 focus:outline-none transition-all"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 bg-[#a16f4a] text-white rounded-full shadow-lg hover:bg-[#8b5e3e] hover:shadow-xl transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Sending OTP..." : "Send Reset Code"}
+            </button>
+          </form>
+        )}
+
+        {/* OTP + Password Reset */}
+        {otpModal && (
+          <div className="space-y-4">
+            <form onSubmit={verifyOtpAndReset} className="space-y-4">
+              {/* OTP Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  OTP Code (from email)
+                </label>
+                <input
+                  type="text"
+                  name="otp"
+                  value={formData.otp}
+                  onChange={handleChange}
+                  maxLength={6}
+                  required
+                  placeholder="123456"
+                  className="w-full px-4 py-3 rounded-full border-2 border-[#a16f4a]/30 focus:border-[#a16f4a] focus:ring-2 focus:ring-amber-200/50 focus:outline-none text-center text-xl tracking-widest font-mono font-bold bg-gradient-to-r from-amber-50 to-orange-50"
+                />
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Valid for 120 seconds
+                </p>
+              </div>
+
+              {/* New Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  name="newPassword"
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                  placeholder="At least 6 characters"
+                  className="w-full px-4 py-3 rounded-full border-2 border-[#a16f4a]/30 focus:border-[#a16f4a] focus:ring-2 focus:ring-amber-200/50 focus:outline-none transition-all"
                 />
               </div>
-            )}
 
-            {/* Pass token to PetLists */}
-            {selectedCategory && (
-              <PetLists
-                selectedCategory={selectedCategory}
-                onSelectPet={setSelectedPet}
-                token={token}
-              />
-            )}
-          </section>
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                  placeholder="Repeat new password"
+                  className="w-full px-4 py-3 rounded-full border-2 border-[#a16f4a]/30 focus:border-[#a16f4a] focus:ring-2 focus:ring-amber-200/50 focus:outline-none transition-all"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 bg-gradient-to-r from-[#a16f4a] to-[#8b5e3e] text-white rounded-full shadow-lg hover:shadow-xl hover:from-[#8b5e3e] hover:to-[#7c5e3b] transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Resetting..." : "Reset My Password"}
+              </button>
+            </form>
+
+            {/* Back button */}
+            <button
+              type="button"
+              onClick={() => {
+                setOtpModal(false);
+                setMessage("");
+              }}
+              className="w-full py-2 px-4 text-gray-600 border-2 border-gray-200 rounded-full hover:bg-gray-50 hover:border-[#a16f4a]/50 transition-all font-medium"
+            >
+              ← Request New Code
+            </button>
+          </div>
+        )}
+
+        {/* Back to Login */}
+        <div className="text-center pt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-600">
+            Remember your password?{" "}
+            <button
+              onClick={() => navigate("/")}
+              className="text-[#a16f4a] font-semibold hover:underline transition-colors"
+            >
+              Sign In
+            </button>
+          </p>
         </div>
-
-        {/* Floating Chat Widget */}
-        <ChatWidget />
-
-        {/* Adoption Confirmation Modal */}
-        <AdoptionConfirmationModal
-          isOpen={showAdoptionModal}
-          onClose={() => setShowAdoptionModal(false)}
-        />
       </div>
-    </>
+    </div>
   );
 }
 
-export default AdoptionPage;
+export default ForgotPasswordPage;

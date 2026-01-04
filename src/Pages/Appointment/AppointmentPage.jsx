@@ -19,12 +19,6 @@ function AppointmentPage() {
 
   const { apiClient, logout } = useAuth();
 
-  const appointmentMap = {
-    Accepted: "Accepted",
-    Pending: "Pending",
-    Rejected: "Rejected",
-  };
-
   const fetchAppointments = async () => {
     try {
       setLoadingPage(true);
