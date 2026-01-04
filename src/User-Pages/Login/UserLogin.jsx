@@ -192,7 +192,7 @@ function UserLoginPage() {
             {/* Forgot Password */}
             <div className="flex justify-end">
               <Link
-                to="/forgot-password"
+                to="/user/forgot-password"
                 className="text-sm text-amber-600 hover:text-amber-700 underline transition-colors"
               >
                 Forgot your password?

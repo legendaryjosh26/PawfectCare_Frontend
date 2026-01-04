@@ -1,29 +1,67 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import PawfectCareLogo from "../../assets/User-Page-Image/PawfectCareLogo.svg";
+import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const email = searchParams.get("email") || "";
+
+  const [step, setStep] = useState(email ? "otp" : "request");
+  const [otpModal, setOtpModal] = useState(false);
   const [formData, setFormData] = useState({
+    email: email || "",
+    otp: "",
     newPassword: "",
     confirmPassword: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
+  const { apiClient, token } = useAuth();
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const requestOtp = async (e) => {
     e.preventDefault();
+    if (!formData.email) return setMessage("Email required");
 
+    setLoading(true);
+    try {
+      await apiClient.post("/users/forgot-password", { email: formData.email });
+      setMessage("OTP sent! Check your email (120s validity).");
+      setOtpModal(true); // Show OTP modal
+    } catch (err) {
+      setMessage(err.response?.data?.message || "Failed to send OTP");
+    }
+    setLoading(false);
+  };
+
+  const verifyOtpAndReset = async (e) => {
+    e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
-      alert("Passwords do not match!");
-      return;
+      return setMessage("Passwords don't match!");
+    }
+    if (formData.newPassword.length < 6) {
+      return setMessage("Password must be 6+ characters");
     }
 
-    alert("Your password has been reset successfully!");
-    navigate("/user/login");
+    setLoading(true);
+    try {
+      await apiClient.post("/users/verify-forgot-otp-reset", {
+        email: formData.email,
+        code: formData.otp,
+        newPassword: formData.newPassword,
+      });
+      setMessage("Password reset successful!");
+      setTimeout(() => navigate("/"), 1500);
+    } catch (err) {
+      setMessage(err.response?.data?.message || "OTP invalid/expired");
+    }
+    setLoading(false);
   };
 
   return (
@@ -40,59 +78,125 @@ function ForgotPasswordPage() {
             Pawfect Care
           </div>
           <p className="text-gray-600 mt-2 text-sm">
-            Set a new password for your account
+            {step === "otp"
+              ? "Enter OTP to reset password"
+              : "Reset your password"}
           </p>
         </div>
 
-        {/* Reset Password Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              New Password
-            </label>
-            <input
-              type="password"
-              name="newPassword"
-              value={formData.newPassword}
-              onChange={handleChange}
-              required
-              placeholder="Enter new password"
-              className="w-full px-4 py-2 rounded-full border border-[#a16f4a] focus:ring-2 focus:ring-amber-400 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm New Password
-            </label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              placeholder="Confirm new password"
-              className="w-full px-4 py-2 rounded-full border border-[#a16f4a] focus:ring-2 focus:ring-amber-400 focus:outline-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-2 px-4 bg-[#a16f4a] text-white rounded-full shadow-md hover:bg-[#8b5e3e] transition"
+        {/* Messages */}
+        {message && (
+          <div
+            className={`p-3 rounded-lg text-sm ${
+              message.includes("success")
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
           >
-            Reset Password
-          </button>
-        </form>
+            {message}
+          </div>
+        )}
+
+        {/* Step 1: Request OTP */}
+        {step === "request" && (
+          <form onSubmit={requestOtp} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="your@email.com"
+                className="w-full px-4 py-2 rounded-full border border-[#a16f4a] focus:ring-2 focus:ring-amber-400 focus:outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 px-4 bg-[#a16f4a] text-white rounded-full shadow-md hover:bg-[#8b5e3e] transition disabled:opacity-50"
+            >
+              {loading ? "Sending..." : "Send OTP"}
+            </button>
+          </form>
+        )}
+
+        {/* OTP + Reset Modal */}
+        {otpModal && (
+          <div className="space-y-4">
+            <form onSubmit={verifyOtpAndReset} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  OTP Code (from email)
+                </label>
+                <input
+                  type="text"
+                  name="otp"
+                  value={formData.otp}
+                  onChange={handleChange}
+                  maxLength={6}
+                  required
+                  placeholder="123456"
+                  className="w-full px-4 py-2 rounded-full border border-[#a16f4a] focus:ring-2 focus:ring-amber-400 focus:outline-none text-center text-lg tracking-widest font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  name="newPassword"
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                  required
+                  placeholder="New password"
+                  className="w-full px-4 py-2 rounded-full border border-[#a16f4a] focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  placeholder="Confirm password"
+                  className="w-full px-4 py-2 rounded-full border border-[#a16f4a] focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2 px-4 bg-[#a16f4a] text-white rounded-full shadow-md hover:bg-[#8b5e3e] transition disabled:opacity-50"
+              >
+                {loading ? "Reset..." : "Reset Password"}
+              </button>
+            </form>
+            <button
+              onClick={() => setOtpModal(false)}
+              className="w-full py-2 px-4 text-gray-600 border border-gray-300 rounded-full hover:bg-gray-50 transition"
+            >
+              Back to Request OTP
+            </button>
+          </div>
+        )}
 
         {/* Back to login */}
         <div className="text-center">
           <p className="text-sm text-gray-600">
-            Remembered it?{" "}
+            Back to{" "}
             <button
               onClick={() => navigate("/user/login")}
               className="text-[#a16f4a] font-medium hover:underline"
             >
-              Back to Login
+              Login
             </button>
           </p>
         </div>
