@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { redirect, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import NotificationModal from "../../Components/Modals/NotificationModal";
-import LoadingOverlay from "../../Components/Modals/LoadingOverlay"; // <-- new import
+import LoadingOverlay from "../../Components/Modals/LoadingOverlay";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import AddressAutocomplete from "../../Components/Hooks/AddressAutoComplete/AddressAutoComplete";
 
@@ -80,18 +80,17 @@ function UserRegistrationPage() {
 
     try {
       setIsSendingOtp(true);
-      setLoading(true); // button goes into loading state
+      setLoading(true);
       await apiClient.post("/users/otp/send-registration-otp", {
         email: formData.email,
         userName: `${formData.first_name} ${formData.last_name}`,
       });
 
-      // 2) Open OTP modal
       setShowOtpModal(true);
     } catch (err) {
       const message =
         err.response?.data?.message || err.message || "Failed to send OTP";
-      console.error("handleSubmit OTP error:", err); // <--
+      console.error("handleSubmit OTP error:", err);
       setNotification({
         isOpen: true,
         type: "error",
@@ -100,7 +99,7 @@ function UserRegistrationPage() {
       });
     } finally {
       setIsSendingOtp(false);
-      setLoading(false); // stop button loading once OTP request finishes
+      setLoading(false);
     }
   };
 
@@ -112,7 +111,7 @@ function UserRegistrationPage() {
 
     try {
       setIsVerifyingOtp(true);
-      setLoading(true); // button loading while final register runs
+      setLoading(true);
 
       await apiClient.post("/users/otp/verify-registration-otp", {
         email: formData.email,
@@ -134,7 +133,7 @@ function UserRegistrationPage() {
     } catch (err) {
       const message =
         err.response?.data?.message || err.message || "Invalid or expired OTP";
-      console.error("handleVerifyOtp error:", err); // <--
+      console.error("handleVerifyOtp error:", err);
       setError(message);
     } finally {
       setIsVerifyingOtp(false);
@@ -143,27 +142,27 @@ function UserRegistrationPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 px-4 py-8">
-      <div className="relative z-10 w-full max-w-2xl bg-white shadow-2xl rounded-3xl p-8 md:p-10">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 px-4 py-6 sm:py-8">
+      <div className="relative z-10 w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl bg-white shadow-2xl rounded-3xl p-6 sm:p-8 md:p-10 mx-auto">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="text-4xl font-bold text-[#a16f4a] flex items-center justify-center gap-3 mb-2">
-            <span role="img" aria-label="paw" className="text-5xl">
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="text-3xl sm:text-4xl font-bold text-[#a16f4a] flex items-center justify-center gap-2 sm:gap-3 mb-2">
+            <span role="img" aria-label="paw" className="text-4xl sm:text-5xl">
               🐾
             </span>
             Pawfect Care
           </div>
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-xs sm:text-sm text-gray-600 mt-2">
             Create your account to get started
           </p>
         </div>
 
         {/* Registration Form */}
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          {/* First & Last Name */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
+          {/* First & Last Name - Stack on mobile, side-by-side on larger screens */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-sm font-medium text-amber-900 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-amber-900 mb-2">
                 First Name
               </label>
               <input
@@ -172,12 +171,12 @@ function UserRegistrationPage() {
                 value={formData.first_name}
                 onChange={handleChange}
                 placeholder="Enter first name"
-                className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition text-sm sm:text-base"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-amber-900 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-amber-900 mb-2">
                 Last Name
               </label>
               <input
@@ -186,7 +185,7 @@ function UserRegistrationPage() {
                 value={formData.last_name}
                 onChange={handleChange}
                 placeholder="Enter last name"
-                className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition text-sm sm:text-base"
                 required
               />
             </div>
@@ -194,7 +193,7 @@ function UserRegistrationPage() {
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-amber-900 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-amber-900 mb-2">
               Email Address
             </label>
             <input
@@ -203,15 +202,15 @@ function UserRegistrationPage() {
               value={formData.email}
               onChange={handleChange}
               placeholder="example@email.com"
-              className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition text-sm sm:text-base"
               required
             />
           </div>
 
           {/* Birthdate & Sex */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-sm font-medium text-amber-900 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-amber-900 mb-2">
                 Date of Birth
               </label>
               <input
@@ -219,7 +218,7 @@ function UserRegistrationPage() {
                 name="birthdate"
                 value={formData.birthdate}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition text-sm sm:text-base"
                 required
               />
               {formData.age > 0 && (
@@ -229,7 +228,7 @@ function UserRegistrationPage() {
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-amber-900 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-amber-900 mb-2">
                 Sex
               </label>
               <div className="relative">
@@ -237,14 +236,14 @@ function UserRegistrationPage() {
                   name="sex"
                   value={formData.sex}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl bg-white appearance-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition cursor-pointer"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl bg-white appearance-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition cursor-pointer text-sm sm:text-base"
                   required
                 >
                   <option value="">Select sex</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                 </select>
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-600 pointer-events-none">
+                <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-amber-600 pointer-events-none text-xs sm:text-sm">
                   ▼
                 </span>
               </div>
@@ -252,9 +251,9 @@ function UserRegistrationPage() {
           </div>
 
           {/* Monthly Salary & Address */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-sm font-medium text-amber-900 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-amber-900 mb-2">
                 Monthly Income
               </label>
               <div className="relative">
@@ -262,7 +261,7 @@ function UserRegistrationPage() {
                   name="monthly_salary"
                   value={formData.monthly_salary}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl bg-white appearance-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition cursor-pointer"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl bg-white appearance-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition cursor-pointer text-sm sm:text-base"
                   required
                 >
                   <option value="" disabled>
@@ -275,13 +274,13 @@ function UserRegistrationPage() {
                   <option value="₱40,001-₱60,000">₱40,001 - ₱60,000</option>
                   <option value="Above₱60,000">Above ₱60,000</option>
                 </select>
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-600 pointer-events-none">
+                <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-amber-600 pointer-events-none text-xs sm:text-sm">
                   ▼
                 </span>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-amber-900 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-amber-900 mb-2">
                 Address
               </label>
               <AddressAutocomplete
@@ -295,7 +294,7 @@ function UserRegistrationPage() {
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-amber-900 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-amber-900 mb-2">
               Password
             </label>
             <div className="relative">
@@ -306,22 +305,22 @@ function UserRegistrationPage() {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Create a password"
-                className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl pr-12 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl pr-10 sm:pr-12 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition text-sm sm:text-base"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-3 flex items-center text-amber-700 hover:text-amber-900 transition"
+                className="absolute inset-y-0 right-2 sm:right-3 flex items-center text-amber-700 hover:text-amber-900 transition"
               >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
           {/* Confirm Password */}
           <div>
-            <label className="block text-sm font-medium text-amber-900 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-amber-900 mb-2">
               Confirm Password
             </label>
             <div className="relative">
@@ -332,21 +331,21 @@ function UserRegistrationPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="Re-enter your password"
-                className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl pr-12 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl pr-10 sm:pr-12 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition text-sm sm:text-base"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute inset-y-0 right-3 flex items-center text-amber-700 hover:text-amber-900 transition"
+                className="absolute inset-y-0 right-2 sm:right-3 flex items-center text-amber-700 hover:text-amber-900 transition"
               >
-                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
           {/* Terms & Agreement */}
-          <div className="w-full flex justify-center mt-2">
+          <div className="w-full flex flex-col sm:flex-row sm:items-center justify-center mt-2 gap-2 sm:gap-2">
             <div className="flex items-center gap-2">
               <input
                 id="terms"
@@ -355,7 +354,10 @@ function UserRegistrationPage() {
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
                 className="h-4 w-4 text-[#a16f4a] border-amber-300 rounded"
               />
-              <label htmlFor="terms" className="text-sm text-gray-700">
+              <label
+                htmlFor="terms"
+                className="text-xs sm:text-sm text-gray-700 text-center sm:text-left"
+              >
                 I agree to the{" "}
                 <button
                   type="button"
@@ -370,7 +372,7 @@ function UserRegistrationPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+            <div className="bg-red-50 border-2 border-red-200 text-red-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm">
               {error}
             </div>
           )}
@@ -379,13 +381,13 @@ function UserRegistrationPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-xl bg-[#a16f4a] text-white font-semibold text-lg hover:bg-amber-900 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+            className="w-full py-3 sm:py-3.5 rounded-xl bg-[#a16f4a] text-white font-semibold text-base sm:text-lg hover:bg-amber-900 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-4 sm:mt-6"
           >
             {loading ? "Creating Account..." : "Sign Up"}
           </button>
 
           {/* Login Link */}
-          <p className="text-center text-sm text-gray-600 mt-4">
+          <p className="text-center text-xs sm:text-sm text-gray-600 mt-3 sm:mt-4">
             Already have an account?{" "}
             <span
               onClick={() => navigate("/")}
@@ -396,6 +398,8 @@ function UserRegistrationPage() {
           </p>
         </form>
       </div>
+
+      {/* Modals remain the same */}
       <NotificationModal
         isOpen={notification.isOpen}
         onClose={() => setNotification({ ...notification, isOpen: false })}
@@ -578,9 +582,9 @@ function UserRegistrationPage() {
       )}
 
       {showOtpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
-            <h2 className="text-xl font-semibold text-amber-900 mb-2">
+            <h2 className="text-lg sm:text-xl font-semibold text-amber-900 mb-2">
               Verify your email
             </h2>
             <p className="text-sm text-gray-600 mb-4">
@@ -622,4 +626,5 @@ function UserRegistrationPage() {
     </div>
   );
 }
+
 export default UserRegistrationPage;

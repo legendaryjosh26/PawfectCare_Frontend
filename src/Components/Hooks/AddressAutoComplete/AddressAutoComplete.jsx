@@ -70,7 +70,7 @@ export default function AddressAutoComplete({ value, onChange }) {
   }, [clearSuggestions]);
 
   useEffect(() => {
-    if (!value || value.length < 3) {
+    if (!value || value.length < 5) {
       clearSuggestions();
       return;
     }
