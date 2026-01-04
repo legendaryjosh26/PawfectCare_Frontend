@@ -193,7 +193,7 @@ function ForgotPasswordPage() {
           <p className="text-sm text-gray-600">
             Back to{" "}
             <button
-              onClick={() => navigate("/user/login")}
+              onClick={() => navigate("/")}
               className="text-[#a16f4a] font-medium hover:underline"
             >
               Login
