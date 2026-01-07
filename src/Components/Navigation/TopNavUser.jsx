@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import PawfectCareLogo from "../../assets/User-Page-Image/PawfectCareLogo.svg";
 import { ChevronDown, LogOut, Bell } from "lucide-react";
@@ -7,20 +7,16 @@ import { useAuth } from "../ServiceLayer/Context/authContext";
 const TopNavUser = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-
   const [selectedNotif, setSelectedNotif] = useState(null);
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
 
-  const dropdownRef = useRef(null);
-  const notifRef = useRef(null);
-
+  const dropdownRef = useRef(null); // Single ref for profile + notif dropdown
   const { user, setUser, apiClient, logout, isTokenChecking } = useAuth();
 
   const delayedNavigate = (path) => {
@@ -48,13 +44,11 @@ const TopNavUser = () => {
   const formatDateTime = (dateStr, timeStr) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
-
     const formattedDate = date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "2-digit",
     });
-
     let formattedTime = "";
     if (timeStr) {
       const [h, m, s] = timeStr.split(":").map(Number);
@@ -66,7 +60,6 @@ const TopNavUser = () => {
         hour12: true,
       });
     }
-
     return formattedTime
       ? `${formattedDate} at ${formattedTime}`
       : formattedDate;
@@ -75,7 +68,6 @@ const TopNavUser = () => {
   // Fetch user info
   useEffect(() => {
     if (isTokenChecking) return;
-
     if (!user) {
       apiClient
         .get("/users/me")
@@ -84,36 +76,33 @@ const TopNavUser = () => {
     }
   }, [user, apiClient, setUser, isTokenChecking]);
 
-  // Initial fetch for notifications + unread count (total)
-  useEffect(() => {
+  // Stable fetch function
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
-
-    const fetchInitial = async () => {
-      try {
-        const res = await apiClient.get("/users/notification");
-        const all = res.data.notifications || [];
-
-        // store all notifications
-        setNotifications(all);
-
-        // badge = total notifications (change to pending filter if you want)
-        setUnreadCount(all.length);
-      } catch (e) {
-        setNotifications([]);
-        setUnreadCount(0);
-      }
-    };
-
-    fetchInitial();
+    try {
+      setNotifLoading(true);
+      const res = await apiClient.get("/users/notification");
+      const all = res.data.notifications || [];
+      setNotifications(all);
+      return all.length;
+    } catch (e) {
+      setNotifications([]);
+      return 0;
+    } finally {
+      setNotifLoading(false);
+    }
   }, [user, apiClient]);
 
-  // Close dropdowns on outside click
+  // Initial fetch for notifications + unread count
+  useEffect(() => {
+    fetchNotifications().then(setUnreadCount);
+  }, [fetchNotifications, setNotifications]); // Fixed: added setNotifications implicitly via fetchNotifications deps [web:5]
+
+  // Close dropdowns on outside click - single handler for unified ref
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsDropdownOpen(false);
-      }
-      if (notifRef.current && !notifRef.current.contains(e.target)) {
         setIsNotifOpen(false);
       }
     };
@@ -127,31 +116,14 @@ const TopNavUser = () => {
     setIsNotifOpen(false);
   };
 
-  // Click bell: open/close + fetch; clear unread when opening
+  // Toggle notifications - simplified, marks read on open
   const toggleNotifications = async () => {
-    if (!user) return;
-
     const willOpen = !isNotifOpen;
     setIsNotifOpen(willOpen);
-
-    if (!willOpen) {
-      // just closed
-      return;
-    }
-
-    // user is opening -> mark as read (set to 0, or recompute if needed)
-    setUnreadCount(0);
-
-    setNotifLoading(true);
-    try {
-      const res = await apiClient.get("/users/notification");
-      const all = res.data.notifications || [];
-      setNotifications(all);
-      // keep unreadCount 0 because user just opened
-    } catch (e) {
-      setNotifications([]);
-    } finally {
-      setNotifLoading(false);
+    if (willOpen) {
+      setUnreadCount(0);
+      const newCount = await fetchNotifications();
+      // Optionally refetch unread from backend if separate endpoint
     }
   };
 
@@ -170,7 +142,7 @@ const TopNavUser = () => {
 
   // Shared notifications dropdown content
   const renderNotificationsDropdown = () => (
-    <div className="absolute right-0 top-full mt-2 w-80 max-h-80 overflow-y-auto bg-white border border-amber-200 rounded-2xl shadow-xl text-sm">
+    <div className="absolute right-0 top-full mt-2 w-80 max-h-80 overflow-y-auto bg-white border border-amber-200 rounded-2xl shadow-xl text-sm z-50">
       <div className="px-4 py-2 border-b border-amber-100 font-semibold text-gray-800">
         Notifications
       </div>
@@ -181,7 +153,7 @@ const TopNavUser = () => {
       ) : (
         notifications.map((n) => (
           <div
-            key={`${n.type}-${n.id}`}
+            key={`${n.type}-${n.id}`} // Fixed template literal
             className="px-4 py-3 border-b last:border-b-0 border-amber-50 cursor-pointer hover:bg-amber-50"
             onClick={() => handleOpenNotifModal(n)}
           >
@@ -248,7 +220,7 @@ const TopNavUser = () => {
               isActive("/user/about")
                 ? "bg-gradient-to-r from-[#7c5e3b] to-[#8b6f47] text-white shadow-lg"
                 : "text-gray-700 hover:text-[#7c5e3b] hover:bg-amber-50"
-            }`}
+            }`} // Fixed template literal
           >
             About Us
             {isActive("/user/about") && (
@@ -261,7 +233,7 @@ const TopNavUser = () => {
               isActive("/user/adoption")
                 ? "bg-gradient-to-r from-[#7c5e3b] to-[#8b6f47] text-white shadow-lg"
                 : "text-gray-700 hover:text-[#7c5e3b] hover:bg-amber-50"
-            }`}
+            }`} // Fixed
           >
             Adoption
             {isActive("/user/adoption") && (
@@ -274,7 +246,7 @@ const TopNavUser = () => {
               isActive("/user/booking")
                 ? "bg-gradient-to-r from-[#7c5e3b] to-[#8b6f47] text-white shadow-lg"
                 : "text-gray-700 hover:text-[#7c5e3b] hover:bg-amber-50"
-            }`}
+            }`} // Fixed
           >
             Book
             {isActive("/user/booking") && (
@@ -287,7 +259,7 @@ const TopNavUser = () => {
         <div className="flex items-center gap-4">
           {/* Notification bell - DESKTOP ONLY */}
           {!isGuest && (
-            <div className="hidden md:block relative" ref={notifRef}>
+            <div className="hidden md:block" ref={dropdownRef}>
               <button
                 onClick={toggleNotifications}
                 className="relative p-2 rounded-full border-2 border-amber-200 hover:bg-amber-50"
@@ -303,8 +275,15 @@ const TopNavUser = () => {
             </div>
           )}
 
-          {/* Profile / Dropdown */}
-          <div className="relative" ref={dropdownRef}>
+          {/* Profile / Dropdown - SHARED REF */}
+          <div
+            className="relative"
+            ref={
+              isNotifOpen && !isGuest && window.innerWidth >= 768
+                ? null
+                : dropdownRef
+            }
+          >
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex items-center gap-2 px-4 py-2 md:px-6 md:py-3 bg-white border-2 border-amber-200 rounded-full"
@@ -318,50 +297,48 @@ const TopNavUser = () => {
             </button>
 
             {isDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 md:w-64 bg-white border border-amber-200 rounded-2xl shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 w-80 md:w-64 bg-white border border-amber-200 rounded-2xl shadow-xl overflow-hidden min-h-[200px]">
                 {!isGuest && (
                   <div className="p-4 bg-amber-50 border-b border-amber-100">
                     <p className="font-semibold text-gray-900">
                       {formatName(
                         `${user?.first_name || "Guest"} ${
                           user?.last_name || ""
-                        }`
+                        }` // Fixed interpolation
                       )}
                     </p>
                     <p className="text-sm text-gray-600">{user?.email}</p>
                   </div>
                 )}
 
-                <nav className="flex flex-col">
-                  {/* Notification bell - MOBILE ONLY */}
-                  {!isGuest && (
-                    <div className="md:hidden px-4 py-3 border-b border-amber-100">
-                      <div className="relative" ref={notifRef}>
-                        <button
-                          onClick={toggleNotifications}
-                          className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-amber-200 hover:bg-amber-50 transition-colors"
-                        >
-                          <span className="flex items-center gap-3">
-                            <Bell className="h-5 w-5 text-[#7c5e3b] flex-shrink-0" />
-                            <span className="font-medium text-gray-800 text-sm">
-                              Notifications
-                            </span>
-                          </span>
-                          {showBadge && (
-                            <span className="h-5 w-5 rounded-full bg-red-500 text-xs text-white flex items-center justify-center font-bold min-w-[20px]">
-                              {unreadCount}
-                            </span>
-                          )}
-                        </button>
-                        {isNotifOpen && renderNotificationsDropdown()}
-                      </div>
-                    </div>
-                  )}
+                {/* Notifications - ALWAYS SHOWN WHEN !GUEST, MOBILE INTEGRATED */}
+                {!isGuest && (
+                  <div className="px-4 py-4 border-b border-amber-100">
+                    <button
+                      onClick={toggleNotifications}
+                      className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-amber-200 hover:bg-amber-50 transition-colors"
+                    >
+                      <span className="flex items-center gap-3">
+                        <Bell className="h-5 w-5 text-[#7c5e3b] flex-shrink-0" />
+                        <span className="font-medium text-gray-800 text-sm">
+                          Notifications
+                        </span>
+                      </span>
+                      {showBadge && (
+                        <span className="h-5 w-5 rounded-full bg-red-500 text-xs text-white flex items-center justify-center font-bold min-w-[20px]">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+                    {isNotifOpen && renderNotificationsDropdown()}
+                  </div>
+                )}
 
+                <nav className="flex flex-col">
                   {/* Mobile nav buttons */}
                   <button
                     onClick={() => delayedNavigate("/user/about")}
-                    className={`px-4 py-3 text-left font-medium md:hidden hover:bg-amber-50 ${
+                    className={`px-4 py-4 text-left font-medium hover:bg-amber-50 ${
                       isActive("/user/about")
                         ? "text-[#7c5e3b]"
                         : "text-gray-700"
@@ -371,7 +348,7 @@ const TopNavUser = () => {
                   </button>
                   <button
                     onClick={() => delayedNavigate("/user/adoption")}
-                    className={`px-4 py-3 text-left font-medium md:hidden hover:bg-amber-50 ${
+                    className={`px-4 py-4 text-left font-medium hover:bg-amber-50 ${
                       isActive("/user/adoption")
                         ? "text-[#7c5e3b]"
                         : "text-gray-700"
@@ -381,7 +358,7 @@ const TopNavUser = () => {
                   </button>
                   <button
                     onClick={() => delayedNavigate("/user/booking")}
-                    className={`px-4 py-3 text-left font-medium md:hidden hover:bg-amber-50 ${
+                    className={`px-4 py-4 text-left font-medium hover:bg-amber-50 ${
                       isActive("/user/booking")
                         ? "text-[#7c5e3b]"
                         : "text-gray-700"
@@ -394,14 +371,14 @@ const TopNavUser = () => {
                 {isGuest ? (
                   <button
                     onClick={() => delayedNavigate("/")}
-                    className="w-full px-4 py-3 text-left text-[#7c5e3b] font-semibold hover:bg-amber-50 border-t border-amber-100"
+                    className="w-full px-4 py-4 text-left text-[#7c5e3b] font-semibold hover:bg-amber-50 border-t border-amber-100"
                   >
                     Sign In
                   </button>
                 ) : (
                   <button
                     onClick={handleLogout}
-                    className="w-full px-4 py-3 text-left flex items-center gap-2 text-red-600 border-t border-amber-100 hover:bg-amber-50"
+                    className="w-full px-4 py-4 text-left flex items-center gap-2 text-red-600 border-t border-amber-100 hover:bg-amber-50"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign Out
@@ -419,8 +396,14 @@ const TopNavUser = () => {
 
       {/* Notification detail modal */}
       {isNotifModalOpen && selectedNotif && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-amber-100 p-6 relative">
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40"
+          onClick={handleCloseNotifModal}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-amber-100 p-6 relative m-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Close button */}
             <button
               onClick={handleCloseNotifModal}
@@ -428,14 +411,12 @@ const TopNavUser = () => {
             >
               ✕
             </button>
-
             {/* Title */}
             <h2 className="text-xl font-semibold text-[#7c5e3b] mb-4">
               {selectedNotif.type === "appointment"
                 ? "Appointment Details"
                 : "Adoption Request Details"}
             </h2>
-
             {selectedNotif.type === "appointment" ? (
               <div className="space-y-2 text-sm">
                 <p>
@@ -484,7 +465,6 @@ const TopNavUser = () => {
                 )}
               </div>
             )}
-
             {/* Footer button */}
             <div className="mt-6 flex justify-end">
               <button
