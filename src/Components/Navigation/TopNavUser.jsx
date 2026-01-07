@@ -168,6 +168,53 @@ const TopNavUser = () => {
     setSelectedNotif(null);
   };
 
+  // Shared notifications dropdown content
+  const renderNotificationsDropdown = () => (
+    <div className="absolute right-0 top-full mt-2 w-80 max-h-80 overflow-y-auto bg-white border border-amber-200 rounded-2xl shadow-xl text-sm">
+      <div className="px-4 py-2 border-b border-amber-100 font-semibold text-gray-800">
+        Notifications
+      </div>
+      {notifLoading ? (
+        <div className="px-4 py-3 text-gray-500">Loading...</div>
+      ) : notifications.length === 0 ? (
+        <div className="px-4 py-3 text-gray-500">No notifications.</div>
+      ) : (
+        notifications.map((n) => (
+          <div
+            key={`${n.type}-${n.id}`}
+            className="px-4 py-3 border-b last:border-b-0 border-amber-50 cursor-pointer hover:bg-amber-50"
+            onClick={() => handleOpenNotifModal(n)}
+          >
+            {n.type === "appointment" ? (
+              <>
+                <p className="font-semibold text-[#7c5e3b]">
+                  Appointment ({n.appointment_type})
+                </p>
+                <p className="text-gray-700">
+                  Date: {formatDateTime(n.appointment_date, n.timeSchedule)}
+                </p>
+                <p className="text-xs text-amber-700">Status: {n.review}</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-[#7c5e3b]">Adoption Request</p>
+                <p className="text-gray-700">
+                  Requested: {formatDateTime(n.dateRequested)}
+                </p>
+                <p className="text-xs text-gray-700 line-clamp-2">
+                  Purpose: {n.purpose_of_adoption}
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Status: {n.status}
+                </p>
+              </>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+
   return (
     <>
       <header className="fixed top-0 left-0 w-full flex items-center justify-between px-4 py-3 md:px-10 md:py-4 z-50 bg-white border-b border-amber-100 caret-transparent">
@@ -238,9 +285,9 @@ const TopNavUser = () => {
 
         {/* Right side */}
         <div className="flex items-center gap-4">
-          {/* Notification bell */}
+          {/* Notification bell - DESKTOP ONLY */}
           {!isGuest && (
-            <div className="relative" ref={notifRef}>
+            <div className="hidden md:block relative" ref={notifRef}>
               <button
                 onClick={toggleNotifications}
                 className="relative p-2 rounded-full border-2 border-amber-200 hover:bg-amber-50"
@@ -252,62 +299,7 @@ const TopNavUser = () => {
                   </span>
                 )}
               </button>
-
-              {isNotifOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 max-h-80 overflow-y-auto bg-white border border-amber-200 rounded-2xl shadow-xl text-sm">
-                  <div className="px-4 py-2 border-b border-amber-100 font-semibold text-gray-800">
-                    Notifications
-                  </div>
-                  {notifLoading ? (
-                    <div className="px-4 py-3 text-gray-500">Loading...</div>
-                  ) : notifications.length === 0 ? (
-                    <div className="px-4 py-3 text-gray-500">
-                      No notifications.
-                    </div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={`${n.type}-${n.id}`}
-                        className="px-4 py-3 border-b last:border-b-0 border-amber-50 cursor-pointer hover:bg-amber-50"
-                        onClick={() => handleOpenNotifModal(n)}
-                      >
-                        {n.type === "appointment" ? (
-                          <>
-                            <p className="font-semibold text-[#7c5e3b]">
-                              Appointment ({n.appointment_type})
-                            </p>
-                            <p className="text-gray-700">
-                              Date:{" "}
-                              {formatDateTime(
-                                n.appointment_date,
-                                n.timeSchedule
-                              )}
-                            </p>
-                            <p className="text-xs text-amber-700">
-                              Status: {n.review}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-semibold text-[#7c5e3b]">
-                              Adoption Request
-                            </p>
-                            <p className="text-gray-700">
-                              Requested: {formatDateTime(n.dateRequested)}
-                            </p>
-                            <p className="text-xs text-gray-700 line-clamp-2">
-                              Purpose: {n.purpose_of_adoption}
-                            </p>
-                            <p className="text-xs text-amber-700 mt-1">
-                              Status: {n.status}
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
+              {isNotifOpen && renderNotificationsDropdown()}
             </div>
           )}
 
@@ -326,7 +318,7 @@ const TopNavUser = () => {
             </button>
 
             {isDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-amber-200 rounded-2xl shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 w-56 md:w-64 bg-white border border-amber-200 rounded-2xl shadow-xl overflow-hidden">
                 {!isGuest && (
                   <div className="p-4 bg-amber-50 border-b border-amber-100">
                     <p className="font-semibold text-gray-900">
@@ -341,6 +333,32 @@ const TopNavUser = () => {
                 )}
 
                 <nav className="flex flex-col">
+                  {/* Notification bell - MOBILE ONLY */}
+                  {!isGuest && (
+                    <div className="md:hidden px-4 py-3 border-b border-amber-100">
+                      <div className="relative" ref={notifRef}>
+                        <button
+                          onClick={toggleNotifications}
+                          className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-amber-200 hover:bg-amber-50 transition-colors"
+                        >
+                          <span className="flex items-center gap-3">
+                            <Bell className="h-5 w-5 text-[#7c5e3b] flex-shrink-0" />
+                            <span className="font-medium text-gray-800 text-sm">
+                              Notifications
+                            </span>
+                          </span>
+                          {showBadge && (
+                            <span className="h-5 w-5 rounded-full bg-red-500 text-xs text-white flex items-center justify-center font-bold min-w-[20px]">
+                              {unreadCount}
+                            </span>
+                          )}
+                        </button>
+                        {isNotifOpen && renderNotificationsDropdown()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mobile nav buttons */}
                   <button
                     onClick={() => delayedNavigate("/user/about")}
                     className={`px-4 py-3 text-left font-medium md:hidden hover:bg-amber-50 ${
@@ -406,7 +424,7 @@ const TopNavUser = () => {
             {/* Close button */}
             <button
               onClick={handleCloseNotifModal}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 p-1 hover:bg-gray-100 rounded-full transition-colors"
             >
               ✕
             </button>
@@ -471,7 +489,7 @@ const TopNavUser = () => {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={handleCloseNotifModal}
-                className="px-4 py-2 rounded-full bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600"
+                className="px-6 py-2 rounded-full bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors shadow-md"
               >
                 Close
               </button>
