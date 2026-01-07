@@ -254,8 +254,11 @@ const TopNavUser = () => {
               </button>
 
               {isNotifOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 max-h-80 overflow-y-auto bg-white border border-amber-200 rounded-2xl shadow-xl text-sm">
-                  <div className="px-4 py-2 border-b border-amber-100 font-semibold text-gray-800">
+                <div
+                  className="fixed md:absolute left-4 right-4 md:left-auto md:right-0 bottom-0 md:bottom-auto md:top-full md:mt-2 
+                  w-auto md:w-80 max-h-80 overflow-y-auto bg-white border border-amber-200 rounded-t-2xl md:rounded-2xl shadow-xl md:shadow-xl text-sm z-[60]"
+                >
+                  <div className="px-4 py-2 border-b border-amber-100 font-semibold text-gray-800 sticky top-0 bg-white rounded-t-2xl md:rounded-t-2xl">
                     Notifications
                   </div>
                   {notifLoading ? (
@@ -326,7 +329,7 @@ const TopNavUser = () => {
             </button>
 
             {isDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-amber-200 rounded-2xl shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-amber-200 rounded-2xl shadow-xl overflow-hidden z-[60]">
                 {!isGuest && (
                   <div className="p-4 bg-amber-50 border-b border-amber-100">
                     <p className="font-semibold text-gray-900">
@@ -483,4 +486,4 @@ const TopNavUser = () => {
   );
 };
 
-export default TopNavUse;
+export default TopNavUser;
