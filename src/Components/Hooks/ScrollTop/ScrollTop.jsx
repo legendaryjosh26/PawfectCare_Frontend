@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-// ... other imports
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
-// Add this ScrollToTop component
-const ScrollToTop = () => {
+export const ScrollTop = () => {
   const { pathname } = useLocation();
 
   useEffect(() => {
