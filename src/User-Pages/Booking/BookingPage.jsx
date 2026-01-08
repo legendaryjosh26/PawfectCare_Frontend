@@ -9,6 +9,7 @@ import ChatWidget from "../../Components/ChatWidget/ChatWidget";
 
 function BookingPage() {
   const navigate = useNavigate();
+  const [isPageLoading, setIsPageLoading] = useState(true);
 
   const services = [
     {
@@ -42,7 +43,30 @@ function BookingPage() {
       iconBg: "bg-orange-100",
     },
   ];
+  // NEW: Scroll + Loading logic (same as AdoptionPage)
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
 
+    // 800ms minimum loader delay
+    const loadTimer = setTimeout(() => {
+      setIsPageLoading(false);
+    }, 800);
+
+    return () => clearTimeout(loadTimer);
+  }, [location.pathname]);
+
+  if (isPageLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+        <div className="flex flex-col items-center gap-4 p-8">
+          <Loader2 className="h-12 w-12 text-[#7c5e3b] animate-spin drop-shadow-md" />
+          <div className="text-lg font-semibold text-[#7c5e3b]">
+            Loading booking services...
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <PageTransition>
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">

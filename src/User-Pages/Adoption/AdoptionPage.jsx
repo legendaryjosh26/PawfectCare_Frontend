@@ -28,7 +28,7 @@ function AdoptionPage() {
     // Increased delay for smooth UX (500ms minimum)
     const loadTimer = setTimeout(() => {
       setIsPageLoading(false);
-    }, 500); // Changed from 100ms to 500ms
+    }, 800); // Changed from 100ms to 500ms
 
     // Modal logic
     if (location.state?.showAdoptionModal) {
