@@ -25,10 +25,8 @@ const TopNavUser = () => {
 
   const delayedNavigate = (path) => {
     setLoading(true);
-    // Scroll to top before navigating
-    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
     setTimeout(() => {
-      navigate(path, { state: { scrollToTop: true } });
+      navigate(path);
       setIsDropdownOpen(false);
       setIsNotifOpen(false);
       setLoading(false);

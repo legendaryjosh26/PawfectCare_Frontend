@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import AdoptionBanner from "../../assets/User-Page-Image/AdoptionBanner.png";
 import PetGroup from "../../assets/User-Page-Image/PetGroup.svg";
@@ -7,6 +7,7 @@ import AdoptionConfirmationModal from "../../Components/Modals/AdoptionConfirmat
 import ChatWidget from "../../Components/ChatWidget/ChatWidget";
 import CategoryButtons from "../../Components/PetCategory/CategoryButtons";
 import PetLists from "../../Components/PetCategory/PetLists";
+import ScrollTop from "../../Components/Hooks/ScrollTop/ScrollTop";
 
 function AdoptionPage() {
   const location = useLocation();
@@ -154,7 +155,7 @@ function AdoptionPage() {
 
         {/* Floating Chat Widget */}
         <ChatWidget />
-
+        <ScrollTop />
         {/* Adoption Confirmation Modal */}
         <AdoptionConfirmationModal
           isOpen={showAdoptionModal}
