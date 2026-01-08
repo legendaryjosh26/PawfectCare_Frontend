@@ -13,7 +13,7 @@ import { ScrollTop } from "../../Components/Hooks/ScrollTop/ScrollTop";
 function AdoptionPage() {
   const location = useLocation();
   const [showAdoptionModal, setShowAdoptionModal] = useState(false);
-
+  const [isPageLoading, setIsPageLoading] = useState(true);
   // Default category is "All"
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedPet, setSelectedPet] = useState(null);
