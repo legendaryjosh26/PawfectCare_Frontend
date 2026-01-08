@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../ServiceLayer/Context/authContext";
+
 // Skeleton Loading Component
 const PetCardSkeleton = () => (
   <div className="bg-white shadow-md rounded-lg p-2 sm:p-3 md:p-4 animate-pulse">
@@ -17,6 +18,13 @@ function PetLists({ selectedCategory, onLoadingChange }) {
   const [selectedPet, setSelectedPet] = useState(null);
   const [fadeOut, setFadeOut] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
+  const [imageZoomState, setImageZoomState] = useState({
+    isOpen: false,
+    url: "",
+    scale: 1,
+    position: { x: 0, y: 0 },
+  });
+
   const navigate = useNavigate();
   const { apiClient } = useAuth();
 
@@ -215,12 +223,20 @@ function PetLists({ selectedCategory, onLoadingChange }) {
             </button>
 
             <div className="p-6 sm:p-8">
-              {/* Pet Image */}
+              {/* Pet Image - Click to Zoom */}
               <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 mb-6">
                 <img
                   src={selectedPet.imageUrl || "/default-pet.png"}
                   alt={selectedPet.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover cursor-zoom-in hover:brightness-110 transition-all duration-300"
+                  onClick={() =>
+                    setImageZoomState({
+                      isOpen: true,
+                      url: selectedPet.imageUrl || "/default-pet.png",
+                      scale: 1,
+                      position: { x: 0, y: 0 },
+                    })
+                  }
                 />
               </div>
 
@@ -320,6 +336,117 @@ function PetLists({ selectedCategory, onLoadingChange }) {
                   Adopt {selectedPet.name}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Zoom Lightbox Modal */}
+      {imageZoomState.isOpen && (
+        <div
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-95 animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget)
+              setImageZoomState((prev) => ({ ...prev, isOpen: false }));
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape")
+              setImageZoomState((prev) => ({ ...prev, isOpen: false }));
+          }}
+          tabIndex={-1}
+          role="dialog"
+          aria-label="Zoomed pet image"
+        >
+          <div className="relative w-full h-full max-w-4xl max-h-[90vh] p-4 flex items-center justify-center">
+            {/* Zoom Controls */}
+            <div className="absolute top-6 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
+              <button
+                onClick={() =>
+                  setImageZoomState((prev) => ({
+                    ...prev,
+                    scale: Math.max(0.5, prev.scale - 0.25),
+                  }))
+                }
+                className="w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full backdrop-blur-sm flex items-center justify-center text-white text-xl font-bold transition-all duration-200"
+              >
+                -
+              </button>
+              <button
+                onClick={() =>
+                  setImageZoomState((prev) => ({
+                    ...prev,
+                    scale: Math.min(4, prev.scale + 0.25),
+                  }))
+                }
+                className="w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full backdrop-blur-sm flex items-center justify-center text-white text-xl font-bold transition-all duration-200"
+              >
+                +
+              </button>
+              <button
+                onClick={() =>
+                  setImageZoomState((prev) => ({
+                    ...prev,
+                    scale: 1,
+                    position: { x: 0, y: 0 },
+                  }))
+                }
+                className="w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full backdrop-blur-sm flex items-center justify-center text-white transition-all duration-200"
+                title="Reset"
+              >
+                ↺
+              </button>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() =>
+                setImageZoomState((prev) => ({ ...prev, isOpen: false }))
+              }
+              className="absolute top-6 right-6 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full backdrop-blur-sm flex items-center justify-center text-white text-2xl font-bold transition-all duration-200 z-10 hover:scale-110"
+            >
+              ×
+            </button>
+
+            {/* Zoomable Image */}
+            <div
+              className="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden rounded-2xl"
+              style={{
+                transform: `scale(${imageZoomState.scale}) translate(${imageZoomState.position.x}px, ${imageZoomState.position.y}px)`,
+              }}
+            >
+              <img
+                src={imageZoomState.url}
+                alt="Zoomed pet image"
+                className="max-w-none max-h-none w-auto h-auto rounded-2xl shadow-2xl"
+                draggable={false}
+                onMouseDown={(e) => {
+                  if (imageZoomState.scale <= 1) return;
+                  e.preventDefault();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const startPos = { ...imageZoomState.position };
+
+                  const handleMouseMove = (moveEvent) => {
+                    const deltaX = moveEvent.clientX - startX;
+                    const deltaY = moveEvent.clientY - startY;
+                    setImageZoomState((prev) => ({
+                      ...prev,
+                      position: {
+                        x: startPos.x + deltaX,
+                        y: startPos.y + deltaY,
+                      },
+                    }));
+                  };
+
+                  const handleMouseUp = () => {
+                    document.removeEventListener("mousemove", handleMouseMove);
+                    document.removeEventListener("mouseup", handleMouseUp);
+                  };
+
+                  document.addEventListener("mousemove", handleMouseMove);
+                  document.addEventListener("mouseup", handleMouseUp);
+                }}
+              />
             </div>
           </div>
         </div>
