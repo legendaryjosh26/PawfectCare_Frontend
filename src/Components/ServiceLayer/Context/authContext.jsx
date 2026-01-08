@@ -27,32 +27,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // On mount, attempt silent refresh and fetch user
+  // AuthContext.jsx - CORRECTED initializeAuth
   useEffect(() => {
     let cancelled = false;
 
     const initializeAuth = async () => {
       setIsChecking(true);
       try {
-        let accessToken = token;
+        // 1. TRY refresh first (sends cookie automatically)
+        const refreshRes = await apiClient.post(
+          REFRESH_TOKEN_URL,
+          {},
+          { withCredentials: true }
+        );
 
-        if (!accessToken) {
-          const refreshRes = await apiClient.post(
-            REFRESH_TOKEN_URL,
-            {},
-            { withCredentials: true } // ensure cookie is sent
-          );
-          accessToken = refreshRes.data.access_token; // reuse same variable
-          if (accessToken && !cancelled) setToken(accessToken);
-        }
+        const newToken = refreshRes.data.access_token;
+        setToken(newToken);
 
-        if (accessToken) {
-          const userRes = await apiClient.get("/users/me", {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          if (!cancelled) setUser(userRes.data.value || userRes.data);
+        // 2. Fetch user with new token
+        const userRes = await apiClient.get("/users/me");
+        if (!cancelled) {
+          setUser(userRes.data);
         }
-      } catch (e) {
+      } catch (refreshErr) {
+        console.log("Silent refresh failed - require login");
         if (!cancelled) {
           setToken(null);
           setUser(null);
@@ -66,7 +64,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       cancelled = true;
     };
-  }, []); // you can optionally add `token` if you want re-run when it changes
+  }, []);
 
   // Attach token to requests
   useLayoutEffect(() => {
