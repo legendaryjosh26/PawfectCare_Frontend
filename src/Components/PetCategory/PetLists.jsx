@@ -18,12 +18,8 @@ function PetLists({ selectedCategory, onLoadingChange }) {
   const [selectedPet, setSelectedPet] = useState(null);
   const [fadeOut, setFadeOut] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
-  const [imageZoomState, setImageZoomState] = useState({
-    isOpen: false,
-    url: "",
-    scale: 1,
-    position: { x: 0, y: 0 },
-  });
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState("");
 
   const navigate = useNavigate();
   const { apiClient } = useAuth();
@@ -43,7 +39,6 @@ function PetLists({ selectedCategory, onLoadingChange }) {
           url = `/pets/${selectedCategory}`;
         }
 
-        // Use apiClient (handles JWT from context, no localStorage)
         const res = await apiClient.get(url);
         setPets(Array.isArray(res.data) ? res.data : []);
 
@@ -62,13 +57,35 @@ function PetLists({ selectedCategory, onLoadingChange }) {
 
     setFadeIn(false);
     fetchPets();
-    // eslint-disable-next-line
   }, [selectedCategory, onLoadingChange, apiClient]);
+
+  const openImageViewer = (imageUrl) => {
+    setCurrentImageUrl(imageUrl);
+    setImageViewerOpen(true);
+    document.body.style.overflow = "hidden"; // Prevent body scroll
+  };
+
+  const closeImageViewer = () => {
+    setImageViewerOpen(false);
+    document.body.style.overflow = "unset";
+  };
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        closeImageViewer();
+      }
+    };
+    if (imageViewerOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [imageViewerOpen]);
 
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* Skeleton Loading */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
           {[...Array(8)].map((_, index) => (
             <PetCardSkeleton key={index} />
@@ -151,7 +168,6 @@ function PetLists({ selectedCategory, onLoadingChange }) {
                 animation: fadeIn ? "slideInUp 0.6s ease-out forwards" : "none",
               }}
             >
-              {/* Pet Image with hover effect */}
               <div className="aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
                 <img
                   src={pet.imageUrl || "/default-pet.png"}
@@ -162,8 +178,6 @@ function PetLists({ selectedCategory, onLoadingChange }) {
                   }}
                 />
               </div>
-
-              {/* Pet Info */}
               <div className="mt-3">
                 <h3 className="text-xs sm:text-sm md:text-lg font-bold text-gray-900 group-hover:text-[#a16f4a] transition-colors duration-300">
                   {pet.name}
@@ -171,8 +185,6 @@ function PetLists({ selectedCategory, onLoadingChange }) {
                 <p className="text-[10px] sm:text-sm text-gray-600">
                   {pet.breed}
                 </p>
-
-                {/* Quick Info Tags */}
                 <div className="flex flex-wrap gap-1 mt-2">
                   {pet.gender && (
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
@@ -185,8 +197,6 @@ function PetLists({ selectedCategory, onLoadingChange }) {
                     </span>
                   )}
                 </div>
-
-                {/* Hover overlay */}
                 <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <div className="text-xs text-[#a16f4a] font-medium">
                     Click to view details →
@@ -198,11 +208,13 @@ function PetLists({ selectedCategory, onLoadingChange }) {
         </div>
       </div>
 
-      {/* Enhanced Pet Details Modal */}
+      {/* Pet Details Modal */}
       {selectedPet && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4 animate-fadeIn">
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4 animate-fadeIn"
+          onClick={(e) => e.target === e.currentTarget && setSelectedPet(null)}
+        >
           <div className="bg-white rounded-3xl shadow-2xl w-11/12 md:w-2/3 lg:w-1/2 max-h-[90vh] overflow-y-auto relative animate-slideInUp">
-            {/* Close Button */}
             <button
               onClick={() => setSelectedPet(null)}
               className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all duration-200 z-10"
@@ -223,24 +235,38 @@ function PetLists({ selectedCategory, onLoadingChange }) {
             </button>
 
             <div className="p-6 sm:p-8">
-              {/* Pet Image - Click to Zoom */}
-              <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 mb-6">
+              {/* Pet Image - FULL SCREEN VIEW */}
+              <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 mb-6 cursor-pointer relative group">
                 <img
                   src={selectedPet.imageUrl || "/default-pet.png"}
                   alt={selectedPet.name}
-                  className="w-full h-full object-cover cursor-zoom-in hover:brightness-110 transition-all duration-300"
+                  className="w-full h-full object-cover hover:brightness-105 transition-all duration-300 group-hover:scale-105"
                   onClick={() =>
-                    setImageZoomState({
-                      isOpen: true,
-                      url: selectedPet.imageUrl || "/default-pet.png",
-                      scale: 1,
-                      position: { x: 0, y: 0 },
-                    })
+                    openImageViewer(selectedPet.imageUrl || "/default-pet.png")
                   }
                 />
+                {/* View Fullscreen Hint */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-gray-800 flex items-center space-x-2">
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                      />
+                    </svg>
+                    <span>View Fullscreen</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Pet Basic Info */}
+              {/* Rest of pet details (unchanged) */}
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">
                   {selectedPet.name}
@@ -248,7 +274,6 @@ function PetLists({ selectedCategory, onLoadingChange }) {
                 <p className="text-xl text-gray-600">{selectedPet.breed}</p>
               </div>
 
-              {/* Pet Details */}
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-gray-900 mb-4 text-center border-b pb-2">
                   Pet Details
@@ -291,7 +316,6 @@ function PetLists({ selectedCategory, onLoadingChange }) {
                 </div>
               </div>
 
-              {/* Medical Status */}
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-gray-900 mb-4 text-center border-b pb-2">
                   Medical Status
@@ -304,7 +328,6 @@ function PetLists({ selectedCategory, onLoadingChange }) {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setSelectedPet(null)}
@@ -341,113 +364,27 @@ function PetLists({ selectedCategory, onLoadingChange }) {
         </div>
       )}
 
-      {/* Image Zoom Lightbox Modal */}
-      {imageZoomState.isOpen && (
+      {/* FULL SCREEN IMAGE VIEWER */}
+      {imageViewerOpen && (
         <div
-          className="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-95 animate-fadeIn"
-          onClick={(e) => {
-            if (e.target === e.currentTarget)
-              setImageZoomState((prev) => ({ ...prev, isOpen: false }));
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape")
-              setImageZoomState((prev) => ({ ...prev, isOpen: false }));
-          }}
-          tabIndex={-1}
-          role="dialog"
-          aria-label="Zoomed pet image"
+          className="fixed inset-0 z-[100] bg-black flex items-center justify-center p-4"
+          onClick={closeImageViewer}
         >
-          <div className="relative w-full h-full max-w-4xl max-h-[90vh] p-4 flex items-center justify-center">
-            {/* Zoom Controls */}
-            <div className="absolute top-6 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
-              <button
-                onClick={() =>
-                  setImageZoomState((prev) => ({
-                    ...prev,
-                    scale: Math.max(0.5, prev.scale - 0.25),
-                  }))
-                }
-                className="w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full backdrop-blur-sm flex items-center justify-center text-white text-xl font-bold transition-all duration-200"
-              >
-                -
-              </button>
-              <button
-                onClick={() =>
-                  setImageZoomState((prev) => ({
-                    ...prev,
-                    scale: Math.min(4, prev.scale + 0.25),
-                  }))
-                }
-                className="w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full backdrop-blur-sm flex items-center justify-center text-white text-xl font-bold transition-all duration-200"
-              >
-                +
-              </button>
-              <button
-                onClick={() =>
-                  setImageZoomState((prev) => ({
-                    ...prev,
-                    scale: 1,
-                    position: { x: 0, y: 0 },
-                  }))
-                }
-                className="w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full backdrop-blur-sm flex items-center justify-center text-white transition-all duration-200"
-                title="Reset"
-              >
-                ↺
-              </button>
-            </div>
+          <button
+            onClick={closeImageViewer}
+            className="absolute top-8 right-8 w-14 h-14 bg-white/20 hover:bg-white/40 backdrop-blur-xl rounded-2xl flex items-center justify-center text-white text-3xl font-bold transition-all duration-300 hover:scale-110 z-[101]"
+          >
+            ×
+          </button>
 
-            {/* Close Button */}
-            <button
-              onClick={() =>
-                setImageZoomState((prev) => ({ ...prev, isOpen: false }))
-              }
-              className="absolute top-6 right-6 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full backdrop-blur-sm flex items-center justify-center text-white text-2xl font-bold transition-all duration-200 z-10 hover:scale-110"
-            >
-              ×
-            </button>
-
-            {/* Zoomable Image */}
-            <div
-              className="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden rounded-2xl"
-              style={{
-                transform: `scale(${imageZoomState.scale}) translate(${imageZoomState.position.x}px, ${imageZoomState.position.y}px)`,
-              }}
-            >
-              <img
-                src={imageZoomState.url}
-                alt="Zoomed pet image"
-                className="max-w-none max-h-none w-auto h-auto rounded-2xl shadow-2xl"
-                draggable={false}
-                onMouseDown={(e) => {
-                  if (imageZoomState.scale <= 1) return;
-                  e.preventDefault();
-                  const startX = e.clientX;
-                  const startY = e.clientY;
-                  const startPos = { ...imageZoomState.position };
-
-                  const handleMouseMove = (moveEvent) => {
-                    const deltaX = moveEvent.clientX - startX;
-                    const deltaY = moveEvent.clientY - startY;
-                    setImageZoomState((prev) => ({
-                      ...prev,
-                      position: {
-                        x: startPos.x + deltaX,
-                        y: startPos.y + deltaY,
-                      },
-                    }));
-                  };
-
-                  const handleMouseUp = () => {
-                    document.removeEventListener("mousemove", handleMouseMove);
-                    document.removeEventListener("mouseup", handleMouseUp);
-                  };
-
-                  document.addEventListener("mousemove", handleMouseMove);
-                  document.addEventListener("mouseup", handleMouseUp);
-                }}
-              />
-            </div>
+          <div className="w-full h-full max-w-6xl max-h-[95vh] flex items-center justify-center relative">
+            <img
+              src={currentImageUrl}
+              alt="Fullscreen pet image"
+              className="w-auto h-auto max-w-full max-h-full object-contain rounded-2xl shadow-2xl cursor-zoom-in hover:brightness-105 transition-all duration-300"
+              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image
+              loading="lazy"
+            />
           </div>
         </div>
       )}
@@ -455,32 +392,15 @@ function PetLists({ selectedCategory, onLoadingChange }) {
       {/* CSS Animations */}
       <style>{`
         @keyframes slideInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-
-        .animate-slideInUp {
-          animation: slideInUp 0.4s ease-out;
-        }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        .animate-slideInUp { animation: slideInUp 0.4s ease-out; }
       `}</style>
     </>
   );
