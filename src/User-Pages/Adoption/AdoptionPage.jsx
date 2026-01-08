@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { Loader2 } from "lucide-react"; // Add this line
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import AdoptionBanner from "../../assets/User-Page-Image/AdoptionBanner.png";
 import PetGroup from "../../assets/User-Page-Image/PetGroup.svg";
@@ -19,17 +20,44 @@ function AdoptionPage() {
 
   const { token } = useAuth();
 
+  // Scroll to top + handle loading
   useEffect(() => {
+    // Always scroll to top first
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+
+    // Simulate page load complete (adjust timing as needed)
+    const loadTimer = setTimeout(() => {
+      setIsPageLoading(false);
+    }, 100); // Small delay for content to render
+
+    // Modal logic
     if (location.state?.showAdoptionConfirmation) {
       setShowAdoptionModal(true);
       const timer = setTimeout(() => setShowAdoptionModal(false), 2000);
       window.history.replaceState({}, document.title);
       return () => clearTimeout(timer);
     }
-  }, [location]);
+
+    return () => clearTimeout(loadTimer);
+  }, [location.pathname]); // Depend on pathname only
+
+  // Show loading spinner UNTIL content loads
+  if (isPageLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+        <div className="flex flex-col items-center gap-4 p-8">
+          <Loader2 className="h-12 w-12 text-[#7c5e3b] animate-spin" />
+          <div className="text-lg font-semibold text-[#7c5e3b]">
+            Loading pets for adoption...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
+      <ScrollTop />
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
         {/* Hero Banner Section */}
         <div className="relative overflow-hidden">
@@ -155,7 +183,6 @@ function AdoptionPage() {
 
         {/* Floating Chat Widget */}
         <ChatWidget />
-        <ScrollTop />
         {/* Adoption Confirmation Modal */}
         <AdoptionConfirmationModal
           isOpen={showAdoptionModal}
