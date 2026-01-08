@@ -5,6 +5,7 @@ import consultation from "../../assets/User-Page-Image/consultation.svg";
 import deworm from "../../assets/User-Page-Image/deworm.svg";
 import Footer from "../../Components/Footer/Footer";
 import PageTransition from "../../Components/PageTransition/PageTransition";
+import ChatWidget from "../../Components/ChatWidget/ChatWidget";
 
 function BookingPage() {
   const navigate = useNavigate();
@@ -330,7 +331,7 @@ function BookingPage() {
             </div>
           </section>
         </div>
-
+        <ChatWidget />
         <Footer />
       </div>
     </PageTransition>

@@ -4,6 +4,7 @@ import DogAndCat from "../../assets/User-Page-Image/DogAndCatImage.png";
 import Footer from "../../Components/Footer/Footer";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import PageTransition from "../../Components/PageTransition/PageTransition";
+import ChatWidget from "../../Components/ChatWidget/ChatWidget";
 
 function AboutUsPage() {
   const navigate = useNavigate();
@@ -195,7 +196,7 @@ function AboutUsPage() {
             </div>
           </section>
         </div>
-
+        <ChatWidget />
         <Footer />
       </div>
     </PageTransition>
