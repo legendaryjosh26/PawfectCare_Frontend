@@ -84,20 +84,22 @@ export const AuthProvider = ({ children }) => {
     const refreshInterceptor = apiClient.interceptors.response.use(
       (response) => response,
       async (error) => {
-        const originalRequest = error.config || {};
-        if (
-          error.response &&
-          error.response.status === 401 &&
-          !originalRequest._retry &&
-          originalRequest.url !== REFRESH_TOKEN_URL &&
-          originalRequest.url !== "/users/login"
-        ) {
+        const originalRequest = error.config;
+
+        if (error.config.url === REFRESH_TOKEN_URL || originalRequest._retry) {
+          return Promise.reject(error);
+        }
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
+
           try {
             const response = await apiClient.post(
               REFRESH_TOKEN_URL,
               {},
-              { withCredentials: true }
+              {
+                withCredentials: true,
+              }
             );
             const newToken = response.data.access_token;
             setToken(newToken);
@@ -111,9 +113,6 @@ export const AuthProvider = ({ children }) => {
         return Promise.reject(error);
       }
     );
-    return () => {
-      apiClient.interceptors.response.eject(refreshInterceptor);
-    };
   }, [token]);
 
   const contextValue = {
