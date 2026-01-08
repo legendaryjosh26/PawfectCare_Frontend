@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import EmailSentModal from "../../Components/Modals/EmailSentModal";
 import LoadingModal from "../../Components/Modals/LoadingModal";
@@ -13,13 +14,14 @@ function AdoptionRequest() {
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isPageLoading, setIsPageLoading] = useState(true);
 
   const { apiClient, logout } = useAuth();
 
   const fetchRequests = async () => {
     try {
+      setIsPageLoading(true);
       const res = await apiClient.get("/dashboard/user/adoption/detail");
-      // adjust shape if your backend wraps data
       const raw = Array.isArray(res.data) ? res.data : res.data?.requests || [];
 
       const formatted = raw.map((item) => ({
@@ -39,6 +41,8 @@ function AdoptionRequest() {
     } catch (err) {
       console.error("Error fetching adoption requests:", err);
       setRequests([]);
+    } finally {
+      setIsPageLoading(false);
     }
   };
 
@@ -124,6 +128,30 @@ function AdoptionRequest() {
   const pendingCount = requests.filter((r) => r.status === "Pending").length;
   const approvedCount = requests.filter((r) => r.status === "Approved").length;
   const rejectedCount = requests.filter((r) => r.status === "Rejected").length;
+
+  // NEW PET-THEMED FULL PAGE LOADING
+  if (isPageLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 transition-opacity duration-300">
+        <div className="flex flex-col items-center gap-6 p-8 animate-pulse">
+          <div className="w-20 h-20 bg-[#7c5e3b]/20 rounded-2xl flex items-center justify-center mb-4">
+            <Loader2 className="h-16 w-16 text-[#7c5e3b] animate-spin drop-shadow-md" />
+          </div>
+          <div className="space-y-2 text-center">
+            <div className="text-xl font-bold text-[#7c5e3b] tracking-wide">
+              Preparing Adoptions
+            </div>
+            <div className="text-lg text-[#7c5e3b]/80">
+              Loading adoption requests...
+            </div>
+          </div>
+          <div className="w-24 h-1 bg-gradient-to-r from-[#7c5e3b]/30 to-transparent rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#7c5e3b] to-amber-500 animate-pulse w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

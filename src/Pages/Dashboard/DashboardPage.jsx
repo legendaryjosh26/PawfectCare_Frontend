@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
@@ -72,17 +73,25 @@ function DashboardPage() {
     }
   };
 
+  // NEW PET-THEMED LOADING SCREEN
   if (isTokenChecking || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gray-200 rounded-xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <span className="text-2xl">📊</span>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 transition-opacity duration-300">
+        <div className="flex flex-col items-center gap-6 p-8 animate-pulse">
+          <div className="w-20 h-20 bg-[#7c5e3b]/20 rounded-2xl flex items-center justify-center mb-4">
+            <Loader2 className="h-16 w-16 text-[#7c5e3b] animate-spin drop-shadow-md" />
           </div>
-          <p className="text-lg font-semibold text-gray-700 mb-1">
-            Loading Dashboard...
-          </p>
-          <p className="text-sm text-gray-500">Fetching stats</p>
+          <div className="space-y-2 text-center">
+            <div className="text-xl font-bold text-[#7c5e3b] tracking-wide">
+              Preparing Dashboard
+            </div>
+            <div className="text-lg text-[#7c5e3b]/80">
+              Loading PawfectCare stats...
+            </div>
+          </div>
+          <div className="w-24 h-1 bg-gradient-to-r from-[#7c5e3b]/30 to-transparent rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#7c5e3b] to-amber-500 animate-pulse w-3/4" />
+          </div>
         </div>
       </div>
     );
@@ -149,10 +158,10 @@ function DashboardPage() {
   ];
 
   const quickActions = [
-    { label: "Add Pet", path: "/admin/pets/new" },
-    { label: "Adoptions", path: "/admin/adoptions" },
-    { label: "Appointments", path: "/admin/appointments" },
-    { label: "Messages", path: "/admin/messages" },
+    { label: "Add Pet", path: "/admin/pet" },
+    { label: "Adoptions", path: "/admin/adoption" },
+    { label: "Appointments", path: "/admin/appointment" },
+    { label: "Messages", path: "/admin/message" },
   ];
 
   return (
@@ -230,5 +239,4 @@ function DashboardPage() {
     </div>
   );
 }
-
 export default DashboardPage;

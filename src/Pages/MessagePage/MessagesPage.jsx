@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import { socket } from "../../Components/Hooks/socket";
@@ -22,6 +23,30 @@ function MessagesPage() {
   };
 
   useEffect(scrollToBottom, [messages]);
+
+  // NEW PET-THEMED FULL PAGE LOADING
+  if (loadingConversations) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 transition-opacity duration-300">
+        <div className="flex flex-col items-center gap-6 p-8 animate-pulse">
+          <div className="w-20 h-20 bg-[#7c5e3b]/20 rounded-2xl flex items-center justify-center mb-4">
+            <Loader2 className="h-16 w-16 text-[#7c5e3b] animate-spin drop-shadow-md" />
+          </div>
+          <div className="space-y-2 text-center">
+            <div className="text-xl font-bold text-[#7c5e3b] tracking-wide">
+              Preparing Messages
+            </div>
+            <div className="text-lg text-[#7c5e3b]/80">
+              Loading conversations...
+            </div>
+          </div>
+          <div className="w-24 h-1 bg-gradient-to-r from-[#7c5e3b]/30 to-transparent rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#7c5e3b] to-amber-500 animate-pulse w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchConversations();
@@ -51,7 +76,6 @@ function MessagesPage() {
       );
       setMessages(Array.isArray(res.data) ? res.data : []);
       await apiClient.post(`/conversations/${conversationId}/read`);
-      // optional optimistic update
       setMessages((prev) =>
         prev.map((m) =>
           m.sender_id !== user?.user_id ? { ...m, is_read: 1 } : m
@@ -69,7 +93,6 @@ function MessagesPage() {
     setSelectedConversation(conv);
     fetchMessages(conv.conversation_id);
 
-    // join room for this conversation
     socket.emit("join_conversation", conv.conversation_id);
 
     socket.off("new_message");
@@ -99,7 +122,6 @@ function MessagesPage() {
       }
     });
 
-    // optional: listen for messages_read to flip is_read on my last message
     socket.on("messages_read", (data) => {
       if (data.conversationId !== conv.conversation_id) return;
       setMessages((prev) =>
@@ -151,7 +173,6 @@ function MessagesPage() {
         `/conversations/${selectedConversation.conversation_id}/messages`,
         { content }
       );
-      // new message will arrive via "new_message"
     } catch (err) {
       console.error("Send message error:", err);
     }
@@ -186,9 +207,7 @@ function MessagesPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                {loadingConversations ? (
-                  <div className="p-4 text-xs text-gray-500">Loading...</div>
-                ) : conversations.length === 0 ? (
+                {conversations.length === 0 ? (
                   <div className="p-4 text-xs text-gray-500">
                     No conversations yet.
                   </div>
@@ -252,13 +271,11 @@ function MessagesPage() {
                         const isAdmin =
                           m.sender_role === "admin" ||
                           m.sender_id === user?.user_id;
-
                         const isLastAdmin =
                           isAdmin && m.message_id === lastAdminMessageId;
 
                         return (
                           <div key={m.message_id} className="space-y-1">
-                            {/* bubble */}
                             <div
                               className={`flex ${
                                 isAdmin ? "justify-end" : "justify-start"
@@ -274,8 +291,6 @@ function MessagesPage() {
                                 {m.content}
                               </div>
                             </div>
-
-                            {/* bottom: Sent / Seen aligned with sender side */}
                             {isLastAdmin && (
                               <div
                                 className={`flex ${
