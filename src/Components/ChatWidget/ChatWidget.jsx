@@ -74,7 +74,6 @@ function ChatWidget() {
 
         socket.on("messages_read", (data) => {
           if (data.conversationId !== convRes.data.conversation_id) return;
-          // admin opened chat; mark my messages as read
           setMessages((prev) =>
             prev.map((m) =>
               m.sender_id === user?.user_id ? { ...m, is_read: 1 } : m
@@ -146,65 +145,103 @@ function ChatWidget() {
     }
   };
 
+  const closeChat = () => {
+    setIsOpen(false);
+    setConversation(null);
+    setMessages([]);
+  };
+
   return (
     <>
+      {/* FAB Button - Larger touch target, consistent theme */}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="fixed bottom-4 right-4 z-40 rounded-full bg-[#560705] text-white w-12 h-12 flex items-center justify-center shadow-lg hover:bg-[#703736] transition"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl hover:from-[#703736] hover:to-[#560705] active:scale-95 transition-all duration-200 flex items-center justify-center border-2 border-white/20 md:bottom-4 md:right-4"
+        aria-label="Toggle chat"
       >
         {isOpen ? "×" : "💬"}
       </button>
 
+      {/* Backdrop for mobile */}
       {isOpen && (
-        <div className="fixed bottom-20 right-4 w-80 h-96 bg-white shadow-lg rounded-xl flex flex-col z-40">
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden"
+          onClick={closeChat}
+        />
+      )}
+
+      {/* Chat Panel - Fullscreen mobile, compact desktop */}
+      {isOpen && (
+        <div className="fixed z-50 flex flex-col bg-white shadow-2xl rounded-3xl overflow-hidden md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh] w-full h-full max-h-screen bottom-0 right-0 md:rounded-2xl">
           {/* Header */}
-          <div className="px-4 py-2 border-b flex items-center justify-between">
-            <span className="font-semibold text-sm text-gray-800">
-              Chat with Admin
-            </span>
+          <div className="bg-gradient-to-r from-[#560705] to-[#703736] px-6 py-4 border-b border-[#560705]/20 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
+                👤
+              </div>
+              <div>
+                <span className="font-semibold text-white text-base block">
+                  Chat with Admin
+                </span>
+                <span className="text-[#F3D6B7]/80 text-sm">Online</span>
+              </div>
+            </div>
+            <button
+              onClick={closeChat}
+              className="p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-xl transition"
+            >
+              ×
+            </button>
           </div>
 
           {/* Body */}
           {loading && !conversation ? (
-            <div className="flex-1 flex items-center justify-center">
-              <span className="text-sm text-gray-500">Loading chat...</span>
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-[#560705]/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  💬
+                </div>
+                <span className="text-lg font-medium text-gray-700">
+                  Loading chat...
+                </span>
+              </div>
             </div>
           ) : (
             <>
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 md:px-4 md:py-3 bg-gradient-to-b from-gray-50/50 to-white">
                 {messages.map((m) => {
                   const isMe =
                     m.sender_role === "USER" || m.sender_id === user?.user_id;
                   const isLastMine = isMe && m.message_id === lastUserMessageId;
 
                   return (
-                    <div key={m.message_id} className="space-y-1">
-                      {/* bubble */}
+                    <div key={m.message_id} className="space-y-1.5">
+                      {/* Message Bubble */}
                       <div
                         className={`flex ${
                           isMe ? "justify-end" : "justify-start"
                         }`}
                       >
                         <div
-                          className={`max-w-[75%] rounded-lg px-3 py-2 text-xs ${
+                          className={`max-w-[85%] lg:max-w-[70%] px-4 py-3 rounded-2xl shadow-md text-sm transition-all ${
                             isMe
-                              ? "bg-[#560705] text-white rounded-br-none"
-                              : "bg-gray-100 text-gray-800 rounded-bl-none"
+                              ? "bg-gradient-to-r from-[#560705] to-[#703736] text-white rounded-br-sm shadow-[#560705]/25"
+                              : "bg-white/80 backdrop-blur-sm border border-gray-100/50 rounded-bl-sm shadow-sm hover:shadow-md"
                           }`}
                         >
                           {m.content}
                         </div>
                       </div>
 
-                      {/* bottom: Sent / Seen aligned with my bubble */}
+                      {/* Status - only for last user message */}
                       {isLastMine && (
                         <div
                           className={`flex ${
                             isMe ? "justify-end" : "justify-start"
                           }`}
                         >
-                          <span className="text-[10px] text-gray-400">
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/60 backdrop-blur-sm shadow-sm">
                             {m.is_read ? "Seen" : "Sent"}
                           </span>
                         </div>
@@ -213,34 +250,45 @@ function ChatWidget() {
                   );
                 })}
 
+                {/* Typing indicator */}
                 {isAdminTyping && (
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    Admin is typing…
-                  </p>
+                  <div className="flex items-center space-x-2 px-1 py-3">
+                    <div className="flex space-x-1">
+                      <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0s]" />
+                      <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.1s]" />
+                      <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                    </div>
+                    <span className="text-sm text-gray-500 font-medium">
+                      Admin is typing…
+                    </span>
+                  </div>
                 )}
 
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input */}
+              {/* Input Form */}
               <form
                 onSubmit={handleSend}
-                className="border-t px-3 py-2 flex space-x-2"
+                className="bg-white/50 backdrop-blur-sm border-t border-gray-200/50 px-6 py-4 md:px-4 md:py-3"
               >
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={handleUserInputChange}
-                  placeholder="Type a message..."
-                  className="flex-1 text-xs px-2 py-1.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#560705]"
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 bg-[#560705] text-white text-xs font-semibold rounded-lg disabled:opacity-50"
-                  disabled={!newMessage.trim()}
-                >
-                  Send
-                </button>
+                <div className="flex items-end space-x-3">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={handleUserInputChange}
+                    placeholder="Type a message..."
+                    className="flex-1 bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl px-5 py-3 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#560705]/30 focus:border-transparent shadow-sm resize-none min-h-[44px]"
+                    rows={1}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim()}
+                    className="w-12 h-12 bg-gradient-to-r from-[#560705] to-[#703736] text-white rounded-2xl flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:shadow-md transition-all font-semibold flex-shrink-0"
+                  >
+                    ➤
+                  </button>
+                </div>
               </form>
             </>
           )}
