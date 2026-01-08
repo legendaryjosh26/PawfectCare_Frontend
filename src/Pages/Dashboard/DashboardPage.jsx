@@ -24,10 +24,9 @@ function DashboardPage() {
         { withCredentials: true }
       );
       setToken(refreshRes.data.access_token);
-      console.log("✅ Dashboard refresh token success");
       return true;
     } catch (refreshErr) {
-      console.error("❌ Dashboard refresh failed:", refreshErr);
+      console.error("Dashboard refresh failed:", refreshErr);
       logout();
       return false;
     }
