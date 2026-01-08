@@ -1,5 +1,5 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import BookingPoster from "../../assets/User-Page-Image/BookingPoster.png";
 import consultation from "../../assets/User-Page-Image/consultation.svg";
 import deworm from "../../assets/User-Page-Image/deworm.svg";
@@ -57,11 +57,21 @@ function BookingPage() {
 
   if (isPageLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-        <div className="flex flex-col items-center gap-4 p-8">
-          <Loader2 className="h-12 w-12 text-[#7c5e3b] animate-spin drop-shadow-md" />
-          <div className="text-lg font-semibold text-[#7c5e3b]">
-            Loading booking services...
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 transition-opacity duration-300">
+        <div className="flex flex-col items-center gap-6 p-8 animate-pulse">
+          <div className="w-20 h-20 bg-[#7c5e3b]/20 rounded-2xl flex items-center justify-center mb-4">
+            <Loader2 className="h-16 w-16 text-[#7c5e3b] animate-spin drop-shadow-md" />
+          </div>
+          <div className="space-y-2 text-center">
+            <div className="text-xl font-bold text-[#7c5e3b] tracking-wide">
+              Preparing Pets
+            </div>
+            <div className="text-lg text-[#7c5e3b]/80">
+              Loading adorable companions...
+            </div>
+          </div>
+          <div className="w-24 h-1 bg-gradient-to-r from-[#7c5e3b]/30 to-transparent rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#7c5e3b] to-amber-500 animate-pulse w-3/4" />
           </div>
         </div>
       </div>
