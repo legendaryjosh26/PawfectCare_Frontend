@@ -7,7 +7,7 @@ import AdoptionConfirmationModal from "../../Components/Modals/AdoptionConfirmat
 import ChatWidget from "../../Components/ChatWidget/ChatWidget";
 import CategoryButtons from "../../Components/PetCategory/CategoryButtons";
 import PetLists from "../../Components/PetCategory/PetLists";
-import ScrollTop from "../../Components/Hooks/ScrollTop/ScrollTop";
+import { ScrollTop } from "../../Components/Hooks/ScrollTop/ScrollTop";
 
 function AdoptionPage() {
   const location = useLocation();
