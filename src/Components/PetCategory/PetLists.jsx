@@ -65,7 +65,6 @@ function PetLists({ selectedCategory, onLoadingChange }) {
   }, [selectedCategory, onLoadingChange, apiClient]);
 
   const openImageViewer = (imageUrl) => {
-    console.log("Opening image viewer with URL:", imageUrl); // Debug log
     setCurrentImageUrl(imageUrl);
     setImageViewerOpen(true);
     document.body.style.overflow = "hidden";
