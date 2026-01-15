@@ -66,6 +66,7 @@ function ChatWidget() {
         socket.off("messages_read");
 
         socket.on("new_message", (msg) => {
+          console.log("USER WIDGET new_message (init listener):", msg);
           if (msg.conversation_id === convRes.data.conversation_id) {
             setMessages((prev) => [...prev, msg]);
 
@@ -73,15 +74,9 @@ function ChatWidget() {
             const isAdminSender = role !== "user";
 
             if (!isOpen && isAdminSender) {
+              console.log("INCREMENT BADGE (init listener)");
               setHasUnreadMessages(true);
               setUnreadCount((c) => c + 1);
-
-              if (Notification.permission === "granted") {
-                new Notification("New message from Admin", {
-                  body: msg.content.substring(0, 100) + "...",
-                  icon: "/favicon.ico",
-                });
-              }
             }
           }
         });
@@ -129,6 +124,7 @@ function ChatWidget() {
 
   useEffect(() => {
     socket.on("new_message", (msg) => {
+      console.log("USER WIDGET new_message (global listener):", msg);
       if (
         conversation &&
         msg.conversation_id === conversation.conversation_id
@@ -137,6 +133,7 @@ function ChatWidget() {
         const isAdminSender = role !== "user";
 
         if (!isOpen && isAdminSender) {
+          console.log("INCREMENT BADGE (global listener)");
           setHasUnreadMessages(true);
           setUnreadCount((c) => c + 1);
         }
@@ -211,34 +208,25 @@ function ChatWidget() {
 
   return (
     <>
-      {/* FAB Button */}
       <button
-        onClick={
-          hasUnreadMessages ? openChat : () => setIsOpen((prev) => !prev)
-        }
+        onClick={hasUnreadMessages ? openChat : () => setIsOpen((p) => !p)}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl
           bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl
           hover:from-[#703736] hover:to-[#560705] active:scale-95
           transition-all duration-200 flex items-center justify-center
-          border-2 border-white/20 md:bottom-4 md:right-4 ${
+          border-2 border-white/20 md:bottom-4 md:right-4  ${
             hasUnreadMessages ? "ring-4 ring-red-400/50 animate-pulse" : ""
           }`}
         aria-label="Toggle chat"
       >
         {hasUnreadMessages && unreadCount > 0 && (
-          <div
-            className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500
-                       rounded-full flex items-center justify-center
-                       text-[10px] font-bold text-white shadow-lg
-                       border-2 border-white"
-          >
+          <div className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-lg border-2 border-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </div>
         )}
         {isOpen ? "×" : "💬"}
       </button>
 
-      {/* Backdrop for mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden"
@@ -246,15 +234,8 @@ function ChatWidget() {
         />
       )}
 
-      {/* Chat Panel */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col bg-white shadow-2xl
-            overflow-hidden w-full h-screen
-            md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh]
-            md:inset-auto md:rounded-2xl"
-        >
-          {/* Header */}
+        <div className="fixed inset-0 z-50 flex flex-col bg-white shadow-2xl overflow-hidden w-full h-screen md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh] md:inset-auto md:rounded-2xl">
           <div className="bg-gradient-to-r from-[#560705] to-[#703736] px-6 py-4 border-b border-[#560705]/20 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
@@ -275,7 +256,6 @@ function ChatWidget() {
             </button>
           </div>
 
-          {/* Body */}
           {loading && !conversation ? (
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="text-center">
@@ -289,7 +269,6 @@ function ChatWidget() {
             </div>
           ) : (
             <>
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 md:px-4 md:py-3 bg-gradient-to-b from-gray-50/50 to-white">
                 {messages.map((m) => {
                   const isMe =
@@ -346,7 +325,6 @@ function ChatWidget() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input */}
               <form
                 onSubmit={handleSend}
                 className="bg-white/50 backdrop-blur-sm border-t border-gray-200/50 px-6 py-4 md:px-4 md:py-3"
