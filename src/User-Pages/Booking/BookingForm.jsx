@@ -243,7 +243,7 @@ function BookingForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 flex items-start justify-center">
-      <div className="w-full max-w-2xl pt-24">
+      <div className="w-full max-w-2xl pt-14 md:pt-16">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold text-indigo-900 mb-4">
