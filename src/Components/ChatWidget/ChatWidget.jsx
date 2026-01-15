@@ -23,7 +23,7 @@ function ChatWidget() {
 
   useEffect(scrollToBottom, [messages]);
 
-  // 1) Silent init: get conversation and join room even if widget is closed
+  // Silent init: get conversation and join room even if widget is closed
   useEffect(() => {
     const initSilent = async () => {
       try {
@@ -44,7 +44,7 @@ function ChatWidget() {
     };
   }, [apiClient, user?.user_id]);
 
-  // 2) Load messages when widget opens
+  // Load messages when widget opens
   useEffect(() => {
     if (!isOpen || !conversation) return;
 
@@ -57,7 +57,6 @@ function ChatWidget() {
         const messagesData = msgRes.data || [];
         setMessages(messagesData);
 
-        // mark all as read when opening
         await apiClient.post(
           `/conversations/${conversation.conversation_id}/read`
         );
@@ -78,7 +77,7 @@ function ChatWidget() {
     loadMessages();
   }, [isOpen, conversation, apiClient, user?.user_id]);
 
-  // 3) Global socket listeners (now user is always in the room)
+  // Global socket listeners
   useEffect(() => {
     socket.off("new_message");
     socket.off("typing");
@@ -86,37 +85,45 @@ function ChatWidget() {
     socket.off("messages_read");
 
     socket.on("new_message", (msg) => {
-      if (!conversation) return;
-      if (msg.conversation_id !== conversation.conversation_id) return;
+      console.log("USER WIDGET new_message (global listener):", msg);
+      if (
+        !conversation ||
+        msg.conversation_id !== conversation.conversation_id
+      ) {
+        return;
+      }
 
       const role = (msg.sender_role || "").toLowerCase();
       const isAdminSender = role !== "user";
 
+      // Always append to messages (so when user opens chat it’s there)
       setMessages((prev) => [...prev, msg]);
 
+      // Increment badge only when chat is closed and message is from admin
       if (!isOpen && isAdminSender) {
+        console.log("INCREMENT BADGE");
         setHasUnreadMessages(true);
         setUnreadCount((c) => c + 1);
       }
     });
 
     socket.on("typing", (data) => {
-      if (!conversation) return;
-      if (data.conversationId !== conversation.conversation_id) return;
+      if (!conversation || data.conversationId !== conversation.conversation_id)
+        return;
       const role = (data.sender_role || "").toLowerCase();
       if (role === "admin") setIsAdminTyping(true);
     });
 
     socket.on("stop_typing", (data) => {
-      if (!conversation) return;
-      if (data.conversationId !== conversation.conversation_id) return;
+      if (!conversation || data.conversationId !== conversation.conversation_id)
+        return;
       const role = (data.sender_role || "").toLowerCase();
       if (role === "admin") setIsAdminTyping(false);
     });
 
     socket.on("messages_read", (data) => {
-      if (!conversation) return;
-      if (data.conversationId !== conversation.conversation_id) return;
+      if (!conversation || data.conversationId !== conversation.conversation_id)
+        return;
       setMessages((prev) =>
         prev.map((m) =>
           m.sender_id === user?.user_id ? { ...m, is_read: 1 } : m
@@ -293,7 +300,7 @@ function ChatWidget() {
                             isMe ? "justify-end" : "justify-start"
                           }`}
                         >
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg_WHITE/60 backdrop-blur-sm shadow-sm">
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/60 backdrop-blur-sm shadow-sm">
                             {m.is_read ? "Seen" : "Sent"}
                           </span>
                         </div>
