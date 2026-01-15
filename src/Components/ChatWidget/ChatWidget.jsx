@@ -213,7 +213,7 @@ function ChatWidget() {
         className={`fixed bottom-6 right-6 md:bottom-4 md:right-4 z-50 w-14 h-14 rounded-2xl
           bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl
           hover:from-[#703736] hover:to-[#560705] active:scale-95 transition-all duration-200
-          flex items-center justify-center border-2 border-white/20 relative
+          flex items-center justify-center border-2 border-white/20
           ${hasUnreadMessages ? "ring-4 ring-red-400/50 animate-pulse" : ""}`}
         aria-label="Toggle chat"
       >
