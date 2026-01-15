@@ -14,6 +14,7 @@ function ChatWidget() {
   const [loading, setLoading] = useState(false);
   const [isAdminTyping, setIsAdminTyping] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -38,12 +39,13 @@ function ChatWidget() {
         const messagesData = msgRes.data || [];
         setMessages(messagesData);
 
-        const unreadCount = messagesData.filter(
+        const initialUnread = messagesData.filter(
           (m) =>
             (m.sender_role === "ADMIN" || m.sender_role !== "USER") &&
             !m.is_read
         ).length;
-        setHasUnreadMessages(unreadCount > 0);
+        setUnreadCount(initialUnread);
+        setHasUnreadMessages(initialUnread > 0);
 
         await apiClient.post(
           `/conversations/${convRes.data.conversation_id}/read`
@@ -54,6 +56,7 @@ function ChatWidget() {
           )
         );
         setHasUnreadMessages(false);
+        setUnreadCount(0);
 
         socket.emit("join_conversation", convRes.data.conversation_id);
 
@@ -65,11 +68,14 @@ function ChatWidget() {
         socket.on("new_message", (msg) => {
           if (msg.conversation_id === convRes.data.conversation_id) {
             setMessages((prev) => [...prev, msg]);
+
             if (
               !isOpen &&
               (msg.sender_role === "ADMIN" || msg.sender_role !== "USER")
             ) {
               setHasUnreadMessages(true);
+              setUnreadCount((c) => c + 1);
+
               if (Notification.permission === "granted") {
                 new Notification("New message from Admin", {
                   body: msg.content.substring(0, 100) + "...",
@@ -130,6 +136,7 @@ function ChatWidget() {
           (msg.sender_role === "ADMIN" || msg.sender_role !== "USER")
         ) {
           setHasUnreadMessages(true);
+          setUnreadCount((c) => c + 1);
         }
       }
     });
@@ -195,6 +202,7 @@ function ChatWidget() {
   const openChat = () => {
     setIsOpen(true);
     setHasUnreadMessages(false);
+    setUnreadCount(0);
   };
 
   return (
@@ -208,14 +216,19 @@ function ChatWidget() {
           bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl
           hover:from-[#703736] hover:to-[#560705] active:scale-95
           transition-all duration-200 flex items-center justify-center
-          border-2 border-white/20 md:bottom-4 md:right-4 ${
+          border-2 border-white/20 md:bottom-4 md:right-4  ${
             hasUnreadMessages ? "ring-4 ring-red-400/50 animate-pulse" : ""
           }`}
         aria-label="Toggle chat"
       >
-        {hasUnreadMessages && (
-          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg border-2 border-white">
-            •
+        {hasUnreadMessages && unreadCount > 0 && (
+          <div
+            className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500
+                       rounded-full flex items-center justify-center
+                       text-[10px] font-bold text-white shadow-lg
+                       border-2 border-white"
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
           </div>
         )}
         {isOpen ? "×" : "💬"}
