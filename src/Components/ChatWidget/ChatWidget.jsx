@@ -39,11 +39,11 @@ function ChatWidget() {
         const messagesData = msgRes.data || [];
         setMessages(messagesData);
 
-        const initialUnread = messagesData.filter(
-          (m) =>
-            (m.sender_role === "ADMIN" || m.sender_role !== "USER") &&
-            !m.is_read
-        ).length;
+        const initialUnread = messagesData.filter((m) => {
+          const role = (m.sender_role || "").toLowerCase();
+          return role !== "user" && !m.is_read;
+        }).length;
+
         setUnreadCount(initialUnread);
         setHasUnreadMessages(initialUnread > 0);
 
@@ -69,10 +69,10 @@ function ChatWidget() {
           if (msg.conversation_id === convRes.data.conversation_id) {
             setMessages((prev) => [...prev, msg]);
 
-            if (
-              !isOpen &&
-              (msg.sender_role === "ADMIN" || msg.sender_role !== "USER")
-            ) {
+            const role = (msg.sender_role || "").toLowerCase();
+            const isAdminSender = role !== "user";
+
+            if (!isOpen && isAdminSender) {
               setHasUnreadMessages(true);
               setUnreadCount((c) => c + 1);
 
@@ -88,14 +88,16 @@ function ChatWidget() {
 
         socket.on("typing", (data) => {
           if (data.conversationId !== convRes.data.conversation_id) return;
-          if (data.sender_role === "admin") {
+          const role = (data.sender_role || "").toLowerCase();
+          if (role === "admin") {
             setIsAdminTyping(true);
           }
         });
 
         socket.on("stop_typing", (data) => {
           if (data.conversationId !== convRes.data.conversation_id) return;
-          if (data.sender_role === "admin") {
+          const role = (data.sender_role || "").toLowerCase();
+          if (role === "admin") {
             setIsAdminTyping(false);
           }
         });
@@ -131,10 +133,10 @@ function ChatWidget() {
         conversation &&
         msg.conversation_id === conversation.conversation_id
       ) {
-        if (
-          !isOpen &&
-          (msg.sender_role === "ADMIN" || msg.sender_role !== "USER")
-        ) {
+        const role = (msg.sender_role || "").toLowerCase();
+        const isAdminSender = role !== "user";
+
+        if (!isOpen && isAdminSender) {
           setHasUnreadMessages(true);
           setUnreadCount((c) => c + 1);
         }
@@ -148,7 +150,9 @@ function ChatWidget() {
 
   const getLastUserMessageId = () => {
     const userMessages = messages.filter(
-      (m) => m.sender_role === "USER" || m.sender_id === user?.user_id
+      (m) =>
+        (m.sender_role || "").toLowerCase() === "user" ||
+        m.sender_id === user?.user_id
     );
     if (userMessages.length === 0) return null;
     return userMessages[userMessages.length - 1].message_id;
@@ -216,7 +220,7 @@ function ChatWidget() {
           bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl
           hover:from-[#703736] hover:to-[#560705] active:scale-95
           transition-all duration-200 flex items-center justify-center
-          border-2 border-white/20 md:bottom-4 md:right-4  ${
+          border-2 border-white/20 md:bottom-4 md:right-4 ${
             hasUnreadMessages ? "ring-4 ring-red-400/50 animate-pulse" : ""
           }`}
         aria-label="Toggle chat"
@@ -289,7 +293,8 @@ function ChatWidget() {
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 md:px-4 md:py-3 bg-gradient-to-b from-gray-50/50 to-white">
                 {messages.map((m) => {
                   const isMe =
-                    m.sender_role === "USER" || m.sender_id === user?.user_id;
+                    (m.sender_role || "").toLowerCase() === "user" ||
+                    m.sender_id === user?.user_id;
                   const isLastMine = isMe && m.message_id === lastUserMessageId;
 
                   return (

@@ -1,20 +1,21 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { Loader2 } from "lucide-react";
+import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
-import { socket } from "../Hooks/socket";
+import { socket } from "../../Components/Hooks/socket";
 
 const TYPING_TIMEOUT_MS = 2000;
-let userTypingTimeout = null;
+let adminTypingTimeout = null;
 
-function ChatWidget() {
-  const { apiClient, user } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
-  const [conversation, setConversation] = useState(null);
+function MessagesPage() {
+  const { apiClient, logout, user } = useAuth();
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isAdminTyping, setIsAdminTyping] = useState(false);
-  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [isUserTyping, setIsUserTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -24,172 +25,128 @@ function ChatWidget() {
   useEffect(scrollToBottom, [messages]);
 
   useEffect(() => {
-    if (!isOpen || conversation) return;
+    fetchConversations();
+  }, [apiClient, user]);
 
-    const init = async () => {
-      try {
-        setLoading(true);
+  const fetchConversations = async () => {
+    try {
+      setLoadingConversations(true);
+      const res = await apiClient.get("/conversations").catch((e) => {
+        console.log("status:", e.response?.status, "data:", e.response?.data);
+        throw e;
+      });
+      setConversations(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Fetch conversations error:", err);
+      setConversations([]);
+    } finally {
+      setLoadingConversations(false);
+    }
+  };
 
-        const convRes = await apiClient.get("/conversations/me");
-        setConversation(convRes.data);
+  const fetchMessages = async (conversationId) => {
+    try {
+      setLoadingMessages(true);
+      const res = await apiClient.get(
+        `/conversations/${conversationId}/messages`
+      );
+      setMessages(Array.isArray(res.data) ? res.data : []);
+      await apiClient.post(`/conversations/${conversationId}/read`);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.sender_id !== user?.user_id ? { ...m, is_read: 1 } : m
+        )
+      );
+    } catch (err) {
+      console.error("Fetch messages error:", err);
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
 
-        const msgRes = await apiClient.get(
-          `/conversations/${convRes.data.conversation_id}/messages`
-        );
-        const messagesData = msgRes.data || [];
-        setMessages(messagesData);
+  const handleSelectConversation = (conv) => {
+    setSelectedConversation(conv);
+    fetchMessages(conv.conversation_id);
 
-        const initialUnread = messagesData.filter((m) => {
-          const role = (m.sender_role || "").toLowerCase();
-          return role !== "user" && !m.is_read;
-        }).length;
+    socket.emit("join_conversation", conv.conversation_id);
 
-        setUnreadCount(initialUnread);
-        setHasUnreadMessages(initialUnread > 0);
+    socket.off("new_message");
+    socket.off("typing");
+    socket.off("stop_typing");
 
-        await apiClient.post(
-          `/conversations/${convRes.data.conversation_id}/read`
-        );
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.sender_id !== user?.user_id ? { ...m, is_read: 1 } : m
-          )
-        );
-        setHasUnreadMessages(false);
-        setUnreadCount(0);
+    socket.on("new_message", (msg) => {
+      if (msg.conversation_id !== conv.conversation_id) return;
+      setMessages((prev) => {
+        const exists = prev.some((m) => m.message_id === msg.message_id);
+        if (exists) return prev;
+        return [...prev, msg];
+      });
+    });
 
-        socket.emit("join_conversation", convRes.data.conversation_id);
-
-        socket.off("new_message");
-        socket.off("typing");
-        socket.off("stop_typing");
-        socket.off("messages_read");
-
-        socket.on("new_message", (msg) => {
-          if (msg.conversation_id === convRes.data.conversation_id) {
-            setMessages((prev) => [...prev, msg]);
-
-            const role = (msg.sender_role || "").toLowerCase();
-            const isAdminSender = role !== "user";
-
-            if (!isOpen && isAdminSender) {
-              setHasUnreadMessages(true);
-              setUnreadCount((c) => c + 1);
-
-              if (Notification.permission === "granted") {
-                new Notification("New message from Admin", {
-                  body: msg.content.substring(0, 100) + "...",
-                  icon: "/favicon.ico",
-                });
-              }
-            }
-          }
-        });
-
-        socket.on("typing", (data) => {
-          if (data.conversationId !== convRes.data.conversation_id) return;
-          const role = (data.sender_role || "").toLowerCase();
-          if (role === "admin") {
-            setIsAdminTyping(true);
-          }
-        });
-
-        socket.on("stop_typing", (data) => {
-          if (data.conversationId !== convRes.data.conversation_id) return;
-          const role = (data.sender_role || "").toLowerCase();
-          if (role === "admin") {
-            setIsAdminTyping(false);
-          }
-        });
-
-        socket.on("messages_read", (data) => {
-          if (data.conversationId !== convRes.data.conversation_id) return;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.sender_id === user?.user_id ? { ...m, is_read: 1 } : m
-            )
-          );
-        });
-      } catch (err) {
-        console.error("Chat init error:", err);
-      } finally {
-        setLoading(false);
+    socket.on("typing", (data) => {
+      if (data.conversationId !== conv.conversation_id) return;
+      if (data.sender_role === "pet owner") {
+        setIsUserTyping(true);
       }
-    };
+    });
 
-    init();
+    socket.on("stop_typing", (data) => {
+      if (data.conversationId !== conv.conversation_id) return;
+      if (data.sender_role === "pet owner") {
+        setIsUserTyping(false);
+      }
+    });
 
+    socket.on("messages_read", (data) => {
+      if (data.conversationId !== conv.conversation_id) return;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.sender_id === user?.user_id ? { ...m, is_read: 1 } : m
+        )
+      );
+    });
+  };
+
+  useEffect(() => {
     return () => {
       socket.off("new_message");
       socket.off("typing");
       socket.off("stop_typing");
       socket.off("messages_read");
     };
-  }, [isOpen, conversation, apiClient, user?.user_id]);
+  }, []);
 
-  useEffect(() => {
-    socket.on("new_message", (msg) => {
-      if (
-        conversation &&
-        msg.conversation_id === conversation.conversation_id
-      ) {
-        const role = (msg.sender_role || "").toLowerCase();
-        const isAdminSender = role !== "user";
-
-        if (!isOpen && isAdminSender) {
-          setHasUnreadMessages(true);
-          setUnreadCount((c) => c + 1);
-        }
-      }
-    });
-
-    return () => {
-      socket.off("new_message");
-    };
-  }, [conversation, isOpen]);
-
-  const getLastUserMessageId = () => {
-    const userMessages = messages.filter(
-      (m) =>
-        (m.sender_role || "").toLowerCase() === "user" ||
-        m.sender_id === user?.user_id
-    );
-    if (userMessages.length === 0) return null;
-    return userMessages[userMessages.length - 1].message_id;
-  };
-
-  const lastUserMessageId = getLastUserMessageId();
-
-  const handleUserInputChange = (e) => {
+  const handleAdminInputChange = (e) => {
     const value = e.target.value;
     setNewMessage(value);
 
-    if (!conversation) return;
+    if (!selectedConversation) return;
 
     socket.emit("typing", {
-      conversationId: conversation.conversation_id,
-      sender_role: "pet owner",
+      conversationId: selectedConversation.conversation_id,
+      sender_role: "admin",
     });
 
-    if (userTypingTimeout) clearTimeout(userTypingTimeout);
-    userTypingTimeout = setTimeout(() => {
+    if (adminTypingTimeout) clearTimeout(adminTypingTimeout);
+    adminTypingTimeout = setTimeout(() => {
       socket.emit("stop_typing", {
-        conversationId: conversation.conversation_id,
-        sender_role: "pet owner",
+        conversationId: selectedConversation.conversation_id,
+        sender_role: "admin",
       });
     }, TYPING_TIMEOUT_MS);
   };
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !conversation) return;
+    if (!newMessage.trim() || !selectedConversation) return;
 
     const content = newMessage.trim();
     setNewMessage("");
 
     try {
       await apiClient.post(
-        `/conversations/${conversation.conversation_id}/messages`,
+        `/conversations/${selectedConversation.conversation_id}/messages`,
         { content }
       );
     } catch (err) {
@@ -197,183 +154,201 @@ function ChatWidget() {
     }
   };
 
-  const closeChat = () => {
-    setIsOpen(false);
-    setConversation(null);
-    setMessages([]);
+  const getLastAdminMessageId = () => {
+    const adminMessages = messages.filter(
+      (m) => m.sender_role === "admin" || m.sender_id === user?.user_id
+    );
+    if (adminMessages.length === 0) return null;
+    return adminMessages[adminMessages.length - 1].message_id;
   };
 
-  const openChat = () => {
-    setIsOpen(true);
-    setHasUnreadMessages(false);
-    setUnreadCount(0);
-  };
+  const lastAdminMessageId = getLastAdminMessageId();
+
+  // NEW PET-THEMED FULL PAGE LOADING
+  if (loadingConversations) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 transition-opacity duration-300">
+        <div className="flex flex-col items-center gap-6 p-8 animate-pulse">
+          <div className="w-20 h-20 bg-[#7c5e3b]/20 rounded-2xl flex items-center justify-center mb-4">
+            <Loader2 className="h-16 w-16 text-[#7c5e3b] animate-spin drop-shadow-md" />
+          </div>
+          <div className="space-y-2 text-center">
+            <div className="text-xl font-bold text-[#7c5e3b] tracking-wide">
+              Preparing Messages
+            </div>
+            <div className="text-lg text-[#7c5e3b]/80">
+              Loading conversations...
+            </div>
+          </div>
+          <div className="w-24 h-1 bg-gradient-to-r from-[#7c5e3b]/30 to-transparent rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#7c5e3b] to-amber-500 animate-pulse w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      {/* FAB Button */}
-      <button
-        onClick={
-          hasUnreadMessages ? openChat : () => setIsOpen((prev) => !prev)
-        }
-        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl
-          bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl
-          hover:from-[#703736] hover:to-[#560705] active:scale-95
-          transition-all duration-200 flex items-center justify-center
-          border-2 border-white/20 md:bottom-4 md:right-4 ${
-            hasUnreadMessages ? "ring-4 ring-red-400/50 animate-pulse" : ""
-          }`}
-        aria-label="Toggle chat"
-      >
-        {hasUnreadMessages && unreadCount > 0 && (
-          <div
-            className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500
-                       rounded-full flex items-center justify-center
-                       text-[10px] font-bold text-white shadow-lg
-                       border-2 border-white"
-          >
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </div>
-        )}
-        {isOpen ? "×" : "💬"}
-      </button>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-screen-2xl mx-auto">
+        <TopNavAdmin handleSignOut={logout} />
 
-      {/* Backdrop for mobile */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden"
-          onClick={closeChat}
-        />
-      )}
-
-      {/* Chat Panel */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col bg-white shadow-2xl
-            overflow-hidden w-full h-screen
-            md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh]
-            md:inset-auto md:rounded-2xl"
-        >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-[#560705] to-[#703736] px-6 py-4 border-b border-[#560705]/20 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
-                👤
+        <div className="px-6 py-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex h-[70vh]">
+            {/* Left: Conversation list */}
+            <div className="w-1/3 border-r border-gray-200 flex flex-col">
+              <div className="px-4 py-3 border-b">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Messages
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Conversations with users
+                </p>
               </div>
-              <div>
-                <span className="font-semibold text-white text-base block">
-                  Chat with Admin
-                </span>
-                <span className="text-[#F3D6B7]/80 text-sm">Online</span>
-              </div>
-            </div>
-            <button
-              onClick={closeChat}
-              className="p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-xl transition"
-            >
-              ×
-            </button>
-          </div>
 
-          {/* Body */}
-          {loading && !conversation ? (
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-[#560705]/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  💬
-                </div>
-                <span className="text-lg font-medium text-gray-700">
-                  Loading chat...
-                </span>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 md:px-4 md:py-3 bg-gradient-to-b from-gray-50/50 to-white">
-                {messages.map((m) => {
-                  const isMe =
-                    (m.sender_role || "").toLowerCase() === "user" ||
-                    m.sender_id === user?.user_id;
-                  const isLastMine = isMe && m.message_id === lastUserMessageId;
+              <div className="flex-1 overflow-y-auto">
+                {conversations.length === 0 ? (
+                  <div className="p-4 text-xs text-gray-500">
+                    No conversations yet.
+                  </div>
+                ) : (
+                  conversations.map((c) => {
+                    const fullName = `${c.first_name || ""} ${
+                      c.last_name || ""
+                    }`.trim();
+                    const isActive =
+                      selectedConversation?.conversation_id ===
+                      c.conversation_id;
 
-                  return (
-                    <div key={m.message_id} className="space-y-1.5">
-                      <div
-                        className={`flex ${
-                          isMe ? "justify-end" : "justify-start"
+                    return (
+                      <button
+                        key={c.conversation_id}
+                        onClick={() => handleSelectConversation(c)}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                          isActive ? "bg-gray-100" : ""
                         }`}
                       >
-                        <div
-                          className={`max-w-[85%] lg:max-w-[70%] px-4 py-3 rounded-2xl shadow-md text-sm transition-all ${
-                            isMe
-                              ? "bg-gradient-to-r from-[#560705] to-[#703736] text-white rounded-br-sm shadow-[#560705]/25"
-                              : "bg-white/80 backdrop-blur-sm border border-gray-100/50 rounded-bl-sm shadow-sm hover:shadow-md"
-                          }`}
-                        >
-                          {m.content}
-                        </div>
-                      </div>
-
-                      {isLastMine && (
-                        <div
-                          className={`flex ${
-                            isMe ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/60 backdrop-blur-sm shadow-sm">
-                            {m.is_read ? "Seen" : "Sent"}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">
+                            {fullName || `User #${c.user_id}`}
                           </span>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {isAdminTyping && (
-                  <div className="flex items-center space-x-2 px-1 py-3">
-                    <div className="flex space-x-1">
-                      <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0s]" />
-                      <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.1s]" />
-                      <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
-                    </div>
-                    <span className="text-sm text-gray-500 font-medium">
-                      Admin is typing…
-                    </span>
-                  </div>
+                        {c.last_message_preview && (
+                          <p className="mt-1 text-xs text-gray-500 truncate">
+                            {c.last_message_preview}
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })
                 )}
-
-                <div ref={messagesEndRef} />
               </div>
+            </div>
 
-              {/* Input */}
-              <form
-                onSubmit={handleSend}
-                className="bg-white/50 backdrop-blur-sm border-t border-gray-200/50 px-6 py-4 md:px-4 md:py-3"
-              >
-                <div className="flex items-end space-x-3">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={handleUserInputChange}
-                    placeholder="Type a message..."
-                    className="flex-1 bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl px-5 py-3 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#560705]/30 focus:border-transparent shadow-sm resize-none min-h-[44px]"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!newMessage.trim()}
-                    className="w-12 h-12 bg-gradient-to-r from-[#560705] to-[#703736] text-white rounded-2xl flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:shadow-md transition-all font-semibold flex-shrink-0"
+            {/* Right: Messages in selected conversation */}
+            <div className="flex-1 flex flex-col">
+              {selectedConversation ? (
+                <>
+                  <div className="px-4 py-3 border-b flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {`${selectedConversation.first_name || ""} ${
+                          selectedConversation.last_name || ""
+                        }`.trim() || `User #${selectedConversation.user_id}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                    {loadingMessages ? (
+                      <p className="text-xs text-gray-500">Loading messages…</p>
+                    ) : messages.length === 0 ? (
+                      <p className="text-xs text-gray-500">
+                        No messages yet. Start the conversation.
+                      </p>
+                    ) : (
+                      messages.map((m) => {
+                        const isAdmin =
+                          m.sender_role === "admin" ||
+                          m.sender_id === user?.user_id;
+                        const isLastAdmin =
+                          isAdmin && m.message_id === lastAdminMessageId;
+
+                        return (
+                          <div key={m.message_id} className="space-y-1">
+                            <div
+                              className={`flex ${
+                                isAdmin ? "justify-end" : "justify-start"
+                              }`}
+                            >
+                              <div
+                                className={`max-w-[75%] px-3 py-2 text-xs rounded-2xl ${
+                                  isAdmin
+                                    ? "bg-[#560705] text-white rounded-br-sm"
+                                    : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                                }`}
+                              >
+                                {m.content}
+                              </div>
+                            </div>
+                            {isLastAdmin && (
+                              <div
+                                className={`flex ${
+                                  isAdmin ? "justify-end" : "justify-start"
+                                }`}
+                              >
+                                <span className="text-[10px] text-gray-400">
+                                  {m.is_read ? "Seen" : "Sent"}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+
+                    {isUserTyping && (
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        User is typing…
+                      </p>
+                    )}
+
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  <form
+                    onSubmit={handleSend}
+                    className="border-t px-4 py-3 flex space-x-2"
                   >
-                    ➤
-                  </button>
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={handleAdminInputChange}
+                      placeholder="Type a message..."
+                      className="flex-1 text-sm px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#560705]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newMessage.trim()}
+                      className="px-4 py-2 bg-[#560705] text-white text-sm font-semibold rounded-lg disabled:opacity-50"
+                    >
+                      Send
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-500">
+                    Select a conversation from the left to start chatting.
+                  </p>
                 </div>
-              </form>
-            </>
-          )}
+              )}
+            </div>
+          </div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
 
-export default ChatWidget;
+export default MessagesPage;
