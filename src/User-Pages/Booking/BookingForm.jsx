@@ -88,7 +88,7 @@ function BookingForm() {
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [formData.date, apiClient]); // [web:74]
+  }, [formData.date, apiClient]);
 
   // backend time slots in 24h, display as 12h
   const timeSlots = [
@@ -242,7 +242,7 @@ function BookingForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 pt-20 flex flex-col">
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">

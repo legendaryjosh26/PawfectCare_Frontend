@@ -33,9 +33,9 @@ function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      console.log("🚀 Sending OTP to:", formData.email);
+      console.log("Sending OTP to:", formData.email);
       await apiClient.post("/users/forgot-password", { email: formData.email });
-      setMessage("✅ OTP sent! Check your email (120s validity)");
+      setMessage("OTP sent! Check your email (120s validity)");
       setOtpSent(true);
     } catch (err) {
       console.error("OTP request failed:", err.response?.data);
@@ -47,23 +47,21 @@ function ForgotPasswordPage() {
   const verifyOtpAndReset = async (e) => {
     e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
-      return setMessage("❌ Passwords don't match!");
+      return setMessage("Passwords don't match!");
     }
     if (formData.newPassword.length < 6) {
-      return setMessage("❌ Password must be 6+ characters");
+      return setMessage("Password must be 6+ characters");
     }
 
     setLoading(true);
     try {
-      // FIXED: Send 'code' (matches backend expectation)
-      console.log("🔑 Resetting password for:", formData.email);
       const response = await apiClient.post("/users/verify-forgot-otp-reset", {
         email: formData.email,
         code: formData.otp, // ✅ Backend expects 'code'
         newPassword: formData.newPassword,
       });
-      console.log("✅ Reset success:", response.data);
-      setMessage("🎉 Password reset successful! Redirecting to login...");
+      console.log("Reset success:", response.data);
+      setMessage("Password reset successful! Redirecting to login...");
       setTimeout(() => navigate("/"), 2000);
     } catch (err) {
       console.error("Reset failed:", err.response?.data);
@@ -185,10 +183,10 @@ function ForgotPasswordPage() {
             className="w-full py-3 px-4 bg-[#a16f4a] text-white rounded-full shadow-lg hover:bg-[#8b5e3e] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm uppercase tracking-wide"
           >
             {loading
-              ? "⏳ Processing..."
+              ? "Processing..."
               : otpSent
-              ? "🔑 Reset Password"
-              : "📧 Send OTP"}
+              ? "Reset Password"
+              : "Send OTP"}
           </button>
         </form>
 

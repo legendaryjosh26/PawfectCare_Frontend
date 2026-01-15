@@ -70,21 +70,25 @@ function UserLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 px-4 sm:px-6 lg:px-8">
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-amber-200/30 to-orange-200/30 blur-3xl"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-yellow-200/30 to-amber-200/30 blur-3xl"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-sm sm:max-w-md">
         {/* Main card */}
-        <div className="bg-white/95 backdrop-blur-lg shadow-2xl rounded-3xl p-8 border border-white/20">
+        <div className="bg-white/95 backdrop-blur-lg shadow-2xl rounded-3xl p-6 sm:p-8 border border-white/20">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl mb-4 shadow-lg">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl mb-4 shadow-lg mx-auto">
               <span className="text-2xl">
-                <img src={PawLogo} alt="Pawfect Care logo" />
+                <img
+                  src={PawLogo}
+                  alt="Pawfect Care logo"
+                  className="w-10 h-10"
+                />
               </span>
             </div>
             <h1 className="text-2xl font-bold text-gray-800 mb-2">

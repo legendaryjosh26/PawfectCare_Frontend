@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import NotificationModal from "../../Components/Modals/NotificationModal";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
@@ -8,6 +9,7 @@ function AdoptionForm() {
   const location = useLocation();
   const { pet_id } = location.state || {};
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [petInfo, setPetInfo] = useState(null);
   const [notification, setNotification] = useState({
     isOpen: false,
@@ -19,6 +21,20 @@ function AdoptionForm() {
     purpose: "",
   });
   const { apiClient, token } = useAuth();
+
+  // Scroll to top on mount/route change
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
+
+  // Page loading with minimum delay for smooth UX
+  useEffect(() => {
+    const loadTimer = setTimeout(() => {
+      setIsPageLoading(false);
+    }, 500); // 500ms minimum - feels premium without being slow
+
+    return () => clearTimeout(loadTimer);
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -82,6 +98,30 @@ function AdoptionForm() {
       setIsSubmitting(false);
     }
   };
+
+  // Show loader until page is ready
+  if (isPageLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md mx-auto">
+          <div className="w-24 h-24 bg-gradient-to-br from-[#7c5e3b] to-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
+            <Loader2 className="w-16 h-16 text-white animate-spin" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-gray-800">
+              Preparing Adoption Form
+            </h2>
+            <p className="text-gray-600">
+              Getting everything ready for your new companion...
+            </p>
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-6">
+              <div className="bg-gradient-to-r from-[#7c5e3b] to-amber-500 h-2 rounded-full animate-pulse w-3/4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 p-4 flex items-center justify-center">
