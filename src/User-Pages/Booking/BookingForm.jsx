@@ -8,7 +8,6 @@ function BookingForm() {
   const location = useLocation();
   const preselectedService = location.state?.preselectedService || "";
 
-  // ===== HOLIDAYS (PH 2025 nationwide) =====
   const HOLIDAYS = [
     "2025-01-01",
     "2025-04-09",
@@ -57,7 +56,6 @@ function BookingForm() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // ===== booked times for selected date =====
   const [bookedTimes, setBookedTimes] = useState([]);
 
   useEffect(() => {
@@ -77,7 +75,7 @@ function BookingForm() {
             }
           );
           const booked = res.data?.booked || [];
-          setBookedTimes(booked); // e.g. ["08:00","09:30"]
+          setBookedTimes(booked);
         } catch (err) {
           console.error("Failed to load availability", err);
           setBookedTimes([]);
@@ -85,12 +83,11 @@ function BookingForm() {
       };
 
       fetchAvailability();
-    }, 300); // 300ms debounce
+    }, 300);
 
     return () => clearTimeout(timeoutId);
   }, [formData.date, apiClient]);
 
-  // backend time slots in 24h, display as 12h
   const timeSlots = [
     "08:00",
     "08:30",
@@ -167,7 +164,6 @@ function BookingForm() {
         setFormData((prev) => ({ ...prev, date: "" }));
         return;
       }
-      // on new date, clear selected time
       setFormData((prev) => ({ ...prev, time: "" }));
     }
 
@@ -220,7 +216,7 @@ function BookingForm() {
       await apiClient.post("/users/booking", {
         appointment_type: formData.service,
         appointment_date: formData.date,
-        timeschedule: formData.time, // 24h string
+        timeschedule: formData.time,
       });
 
       setShowModal(true);
@@ -242,14 +238,14 @@ function BookingForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 pt-20 flex flex-col">
-      <div className="w-full max-w-2xl">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 flex items-start justify-center">
+      <div className="w-full max-w-2xl pt-24">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold text-indigo-900 mb-4">
             Book Your Appointment
           </h1>
-          <div className="w-24 h-1 bg-indigo-600 mx-auto rounded-full mb-4"></div>
+          <div className="w-24 h-1 bg-indigo-600 mx-auto rounded-full mb-4" />
           <p className="text-xl text-gray-600 max-w-lg mx-auto">
             Schedule professional veterinary care for your beloved pet
           </p>
@@ -332,7 +328,7 @@ function BookingForm() {
                       : "border-gray-200 focus:border-indigo-500"
                   }`}
                 />
-                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
                   📅
                 </div>
               </div>
@@ -425,7 +421,7 @@ function BookingForm() {
             >
               {loading ? (
                 <span className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
                   Booking Appointment...
                 </span>
               ) : (
