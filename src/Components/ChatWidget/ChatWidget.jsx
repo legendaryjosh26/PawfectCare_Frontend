@@ -33,7 +33,7 @@ function ChatWidget() {
         setConversation(convRes.data);
         socket.emit("join_conversation", convRes.data.conversation_id);
 
-        // Initial unseen admin messages (before widget ever opened)
+        // Initial unseen ADMIN messages
         const msgRes = await apiClient.get(
           `/conversations/${convRes.data.conversation_id}/messages`
         );
@@ -42,7 +42,7 @@ function ChatWidget() {
 
         const initialUnreadFromAdmin = messagesData.filter((m) => {
           const role = (m.sender_role || "").toLowerCase();
-          return role !== "user" && !m.is_read;
+          return role === "admin" && !m.is_read;
         }).length;
 
         if (initialUnreadFromAdmin > 0) {
@@ -117,7 +117,7 @@ function ChatWidget() {
       if (msg.conversation_id !== conversation.conversation_id) return;
 
       const role = (msg.sender_role || "").toLowerCase();
-      const isAdminSender = role !== "user";
+      const isAdminSender = role === "admin";
 
       setMessages((prev) => [...prev, msg]);
 
@@ -157,11 +157,10 @@ function ChatWidget() {
   }, [conversation, isOpen, user]);
 
   const getLastUserMessageId = () => {
-    const userMessages = messages.filter(
-      (m) =>
-        (m.sender_role || "").toLowerCase() === "user" ||
-        m.sender_id === user?.user_id
-    );
+    const userMessages = messages.filter((m) => {
+      const role = (m.sender_role || "").toLowerCase();
+      return role === "pet owner" || m.sender_id === user?.user_id;
+    });
     if (userMessages.length === 0) return null;
     return userMessages[userMessages.length - 1].message_id;
   };
@@ -255,7 +254,7 @@ function ChatWidget() {
         <div className="fixed inset-0 z-50 flex flex-col bg-white shadow-2xl overflow-hidden w-full h-screen md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh] md:inset-auto md:rounded-2xl">
           {/* Header */}
           <div className="bg-gradient-to-r from-[#560705] to-[#703736] px-6 py-4 border-b border-[#560705]/20 flex items-center justify-between">
-            <div className="flex items_center space-x-3">
+            <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
                 👤
               </div>
@@ -291,9 +290,9 @@ function ChatWidget() {
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 md:px-4 md:py-3 bg-gradient-to-b from-gray-50/50 to-white">
                 {messages.map((m) => {
+                  const role = (m.sender_role || "").toLowerCase();
                   const isMe =
-                    (m.sender_role || "").toLowerCase() === "user" ||
-                    m.sender_id === user?.user_id;
+                    role === "pet owner" || m.sender_id === user?.user_id;
                   const isLastMine = isMe && m.message_id === lastUserMessageId;
 
                   return (
