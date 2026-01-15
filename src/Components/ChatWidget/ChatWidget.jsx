@@ -13,6 +13,7 @@ function ChatWidget() {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [isAdminTyping, setIsAdminTyping] = useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -34,7 +35,16 @@ function ChatWidget() {
         const msgRes = await apiClient.get(
           `/conversations/${convRes.data.conversation_id}/messages`
         );
-        setMessages(msgRes.data || []);
+        const messagesData = msgRes.data || [];
+        setMessages(messagesData);
+
+        // Check for unread messages from admin
+        const unreadCount = messagesData.filter(
+          (m) =>
+            (m.sender_role === "ADMIN" || m.sender_role !== "USER") &&
+            !m.is_read
+        ).length;
+        setHasUnreadMessages(unreadCount > 0);
 
         await apiClient.post(
           `/conversations/${convRes.data.conversation_id}/read`
@@ -44,6 +54,7 @@ function ChatWidget() {
             m.sender_id !== user?.user_id ? { ...m, is_read: 1 } : m
           )
         );
+        setHasUnreadMessages(false);
 
         socket.emit("join_conversation", convRes.data.conversation_id);
 
@@ -55,6 +66,20 @@ function ChatWidget() {
         socket.on("new_message", (msg) => {
           if (msg.conversation_id === convRes.data.conversation_id) {
             setMessages((prev) => [...prev, msg]);
+            // Show notification if chat is closed and message is from admin
+            if (
+              !isOpen &&
+              (msg.sender_role === "ADMIN" || msg.sender_role !== "USER")
+            ) {
+              setHasUnreadMessages(true);
+              // Optional: Add browser notification
+              if (Notification.permission === "granted") {
+                new Notification("New message from Admin", {
+                  body: msg.content.substring(0, 100) + "...",
+                  icon: "/favicon.ico",
+                });
+              }
+            }
           }
         });
 
@@ -96,6 +121,27 @@ function ChatWidget() {
       socket.off("messages_read");
     };
   }, [isOpen, conversation, apiClient, user?.user_id]);
+
+  // Listen for new messages even when chat is closed
+  useEffect(() => {
+    socket.on("new_message", (msg) => {
+      if (
+        conversation &&
+        msg.conversation_id === conversation.conversation_id
+      ) {
+        if (
+          !isOpen &&
+          (msg.sender_role === "ADMIN" || msg.sender_role !== "USER")
+        ) {
+          setHasUnreadMessages(true);
+        }
+      }
+    });
+
+    return () => {
+      socket.off("new_message");
+    };
+  }, [conversation, isOpen]);
 
   const getLastUserMessageId = () => {
     const userMessages = messages.filter(
@@ -151,14 +197,28 @@ function ChatWidget() {
     setMessages([]);
   };
 
+  const openChat = () => {
+    setIsOpen(true);
+    setHasUnreadMessages(false); // Clear notification when opening
+  };
+
   return (
     <>
-      {/* FAB Button - Larger touch target, consistent theme */}
+      {/* FAB Button - Shows notification badge */}
       <button
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl hover:from-[#703736] hover:to-[#560705] active:scale-95 transition-all duration-200 flex items-center justify-center border-2 border-white/20 md:bottom-4 md:right-4"
+        onClick={
+          hasUnreadMessages ? openChat : () => setIsOpen((prev) => !prev)
+        }
+        className={`bottom-6 right-6 z-50 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl hover:from-[#703736] hover:to-[#560705] active:scale-95 transition-all duration-200 flex items-center justify-center border-2 border-white/20 md:bottom-4 md:right-4 relative ${
+          hasUnreadMessages ? "ring-4 ring-red-400/50 animate-pulse" : ""
+        }`}
         aria-label="Toggle chat"
       >
+        {hasUnreadMessages && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg border-2 border-white">
+            •
+          </div>
+        )}
         {isOpen ? "×" : "💬"}
       </button>
 
@@ -172,7 +232,7 @@ function ChatWidget() {
 
       {/* Chat Panel - Fullscreen mobile, compact desktop */}
       {isOpen && (
-        <div className="fixed z-50 flex flex-col bg-white shadow-2xl rounded-3xl overflow-hidden md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh] w-full h-full max-h-screen bottom-0 right-0 md:rounded-2xl">
+        <div className="fixed z-50 flex flex-col bg-white shadow-2xl rounded-3xl overflow-hidden md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh] w-full h-screen bottom-0 right-0 md:rounded-2xl">
           {/* Header */}
           <div className="bg-gradient-to-r from-[#560705] to-[#703736] px-6 py-4 border-b border-[#560705]/20 flex items-center justify-between">
             <div className="flex items-center space-x-3">
