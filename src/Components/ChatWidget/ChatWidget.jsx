@@ -7,7 +7,6 @@ let userTypingTimeout = null;
 
 function ChatWidget() {
   const { apiClient, user } = useAuth();
-
   const [isOpen, setIsOpen] = useState(false);
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -15,7 +14,6 @@ function ChatWidget() {
   const [loading, setLoading] = useState(false);
   const [isAdminTyping, setIsAdminTyping] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -37,11 +35,9 @@ function ChatWidget() {
         const msgRes = await apiClient.get(
           `/conversations/${convRes.data.conversation_id}/messages`
         );
-
         const messagesData = msgRes.data || [];
         setMessages(messagesData);
 
-        // Check for unread messages from admin
         const unreadCount = messagesData.filter(
           (m) =>
             (m.sender_role === "ADMIN" || m.sender_role !== "USER") &&
@@ -49,11 +45,9 @@ function ChatWidget() {
         ).length;
         setHasUnreadMessages(unreadCount > 0);
 
-        // Mark as read immediately when opening
         await apiClient.post(
           `/conversations/${convRes.data.conversation_id}/read`
         );
-
         setMessages((prev) =>
           prev.map((m) =>
             m.sender_id !== user?.user_id ? { ...m, is_read: 1 } : m
@@ -71,18 +65,14 @@ function ChatWidget() {
         socket.on("new_message", (msg) => {
           if (msg.conversation_id === convRes.data.conversation_id) {
             setMessages((prev) => [...prev, msg]);
-
-            // Notify badge if chat is closed and message is from admin
             if (
               !isOpen &&
               (msg.sender_role === "ADMIN" || msg.sender_role !== "USER")
             ) {
               setHasUnreadMessages(true);
-
-              // Optional browser notification
-              if (Notification?.permission === "granted") {
+              if (Notification.permission === "granted") {
                 new Notification("New message from Admin", {
-                  body: `${msg.content?.substring(0, 100)}...`,
+                  body: msg.content.substring(0, 100) + "...",
                   icon: "/favicon.ico",
                 });
               }
@@ -92,12 +82,16 @@ function ChatWidget() {
 
         socket.on("typing", (data) => {
           if (data.conversationId !== convRes.data.conversation_id) return;
-          if (data.sender_role === "admin") setIsAdminTyping(true);
+          if (data.sender_role === "admin") {
+            setIsAdminTyping(true);
+          }
         });
 
         socket.on("stop_typing", (data) => {
           if (data.conversationId !== convRes.data.conversation_id) return;
-          if (data.sender_role === "admin") setIsAdminTyping(false);
+          if (data.sender_role === "admin") {
+            setIsAdminTyping(false);
+          }
         });
 
         socket.on("messages_read", (data) => {
@@ -125,12 +119,12 @@ function ChatWidget() {
     };
   }, [isOpen, conversation, apiClient, user?.user_id]);
 
-  // Listen for new messages even when chat is closed (badge only)
   useEffect(() => {
-    const handler = (msg) => {
-      if (!conversation) return;
-
-      if (msg.conversation_id === conversation.conversation_id) {
+    socket.on("new_message", (msg) => {
+      if (
+        conversation &&
+        msg.conversation_id === conversation.conversation_id
+      ) {
         if (
           !isOpen &&
           (msg.sender_role === "ADMIN" || msg.sender_role !== "USER")
@@ -138,10 +132,11 @@ function ChatWidget() {
           setHasUnreadMessages(true);
         }
       }
-    };
+    });
 
-    socket.on("new_message", handler);
-    return () => socket.off("new_message", handler);
+    return () => {
+      socket.off("new_message");
+    };
   }, [conversation, isOpen]);
 
   const getLastUserMessageId = () => {
@@ -186,7 +181,6 @@ function ChatWidget() {
         `/conversations/${conversation.conversation_id}/messages`,
         { content }
       );
-      // message will arrive via socket
     } catch (err) {
       console.error("Send message error:", err);
     }
@@ -205,16 +199,18 @@ function ChatWidget() {
 
   return (
     <>
-      {/* FAB Button - fixed bottom-right */}
+      {/* FAB Button */}
       <button
         onClick={
           hasUnreadMessages ? openChat : () => setIsOpen((prev) => !prev)
         }
-        className={`fixed bottom-6 right-6 md:bottom-4 md:right-4 z-50 w-14 h-14 rounded-2xl
+        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl
           bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl
-          hover:from-[#703736] hover:to-[#560705] active:scale-95 transition-all duration-200
-          flex items-center justify-center border-2 border-white/20
-          ${hasUnreadMessages ? "ring-4 ring-red-400/50 animate-pulse" : ""}`}
+          hover:from-[#703736] hover:to-[#560705] active:scale-95
+          transition-all duration-200 flex items-center justify-center
+          border-2 border-white/20 md:bottom-4 md:right-4 ${
+            hasUnreadMessages ? "ring-4 ring-red-400/50 animate-pulse" : ""
+          }`}
         aria-label="Toggle chat"
       >
         {hasUnreadMessages && (
@@ -233,14 +229,13 @@ function ChatWidget() {
         />
       )}
 
-      {/* Chat Panel - fullscreen mobile, compact desktop */}
+      {/* Chat Panel */}
       {isOpen && (
         <div
-          className="
-            fixed z-50 flex flex-col bg-white shadow-2xl overflow-hidden
-            inset-0 w-full h-[100dvh] rounded-none
-            md:inset-auto md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh] md:rounded-2xl
-          "
+          className="fixed inset-0 z-50 flex flex-col bg-white shadow-2xl
+            overflow-hidden w-full h-screen
+            md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh]
+            md:inset-auto md:rounded-2xl"
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-[#560705] to-[#703736] px-6 py-4 border-b border-[#560705]/20 flex items-center justify-between">
@@ -255,11 +250,9 @@ function ChatWidget() {
                 <span className="text-[#F3D6B7]/80 text-sm">Online</span>
               </div>
             </div>
-
             <button
               onClick={closeChat}
               className="p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-xl transition"
-              aria-label="Close chat"
             >
               ×
             </button>
@@ -319,7 +312,6 @@ function ChatWidget() {
                   );
                 })}
 
-                {/* Typing indicator */}
                 {isAdminTyping && (
                   <div className="flex items-center space-x-2 px-1 py-3">
                     <div className="flex space-x-1">
@@ -336,7 +328,7 @@ function ChatWidget() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input Form */}
+              {/* Input */}
               <form
                 onSubmit={handleSend}
                 className="bg-white/50 backdrop-blur-sm border-t border-gray-200/50 px-6 py-4 md:px-4 md:py-3"
@@ -347,13 +339,12 @@ function ChatWidget() {
                     value={newMessage}
                     onChange={handleUserInputChange}
                     placeholder="Type a message..."
-                    className="flex-1 bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl px-5 py-3 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#560705]/30 focus:border-transparent shadow-sm min-h-[44px]"
+                    className="flex-1 bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl px-5 py-3 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#560705]/30 focus:border-transparent shadow-sm resize-none min-h-[44px]"
                   />
                   <button
                     type="submit"
                     disabled={!newMessage.trim()}
                     className="w-12 h-12 bg-gradient-to-r from-[#560705] to-[#703736] text-white rounded-2xl flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:shadow-md transition-all font-semibold flex-shrink-0"
-                    aria-label="Send message"
                   >
                     ➤
                   </button>
