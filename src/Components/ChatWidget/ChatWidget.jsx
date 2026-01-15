@@ -32,6 +32,23 @@ function ChatWidget() {
         const convRes = await apiClient.get("/conversations/me");
         setConversation(convRes.data);
         socket.emit("join_conversation", convRes.data.conversation_id);
+
+        // Initial unseen admin messages (before widget ever opened)
+        const msgRes = await apiClient.get(
+          `/conversations/${convRes.data.conversation_id}/messages`
+        );
+        const messagesData = msgRes.data || [];
+        setMessages(messagesData);
+
+        const initialUnreadFromAdmin = messagesData.filter((m) => {
+          const role = (m.sender_role || "").toLowerCase();
+          return role !== "user" && !m.is_read;
+        }).length;
+
+        if (initialUnreadFromAdmin > 0) {
+          setHasUnreadMessages(true);
+          setUnreadCount(initialUnreadFromAdmin);
+        }
       } catch (e) {
         console.error("Silent chat init error:", e);
       }
@@ -62,7 +79,6 @@ function ChatWidget() {
         const messagesData = msgRes.data || [];
         setMessages(messagesData);
 
-        // Mark as read only in this safe context
         await apiClient.post(
           `/conversations/${conversation.conversation_id}/read`
         );
@@ -204,6 +220,7 @@ function ChatWidget() {
 
   return (
     <>
+      {/* FAB Button */}
       <button
         onClick={
           hasUnreadMessages ? openChat : () => setIsOpen((prev) => !prev)
@@ -212,7 +229,7 @@ function ChatWidget() {
           bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl
           hover:from-[#703736] hover:to-[#560705] active:scale-95
           transition-all duration-200 flex items-center justify-center
-          border-2 border-white/20 md:bottom-4 md:right-4 relative ${
+          border-2 border-white/20 md:bottom-4 md:right-4  ${
             hasUnreadMessages ? "ring-4 ring-red-400/50 animate-pulse" : ""
           }`}
         aria-label="Toggle chat"
@@ -225,6 +242,7 @@ function ChatWidget() {
         {isOpen ? "×" : "💬"}
       </button>
 
+      {/* Backdrop for mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden"
@@ -232,10 +250,12 @@ function ChatWidget() {
         />
       )}
 
+      {/* Chat Panel */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-white shadow-2xl overflow-hidden w-full h-screen md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh] md:inset-auto md:rounded-2xl">
+          {/* Header */}
           <div className="bg-gradient-to-r from-[#560705] to-[#703736] px-6 py-4 border-b border-[#560705]/20 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            <div className="flex items_center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
                 👤
               </div>
@@ -254,6 +274,7 @@ function ChatWidget() {
             </button>
           </div>
 
+          {/* Body */}
           {loading && !conversation ? (
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="text-center">
@@ -267,6 +288,7 @@ function ChatWidget() {
             </div>
           ) : (
             <>
+              {/* Messages */}
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 md:px-4 md:py-3 bg-gradient-to-b from-gray-50/50 to-white">
                 {messages.map((m) => {
                   const isMe =
@@ -284,7 +306,7 @@ function ChatWidget() {
                         <div
                           className={`max-w-[85%] lg:max-w-[70%] px-4 py-3 rounded-2xl shadow-md text-sm transition-all ${
                             isMe
-                              ? "bg-gradient-to-r from-[#560705] to-[#703736] text_WHITE rounded-br-sm shadow-[#560705]/25"
+                              ? "bg-gradient-to-r from-[#560705] to-[#703736] text-white rounded-br-sm shadow-[#560705]/25"
                               : "bg-white/80 backdrop-blur-sm border border-gray-100/50 rounded-bl-sm shadow-sm hover:shadow-md"
                           }`}
                         >
@@ -323,6 +345,7 @@ function ChatWidget() {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Input Form */}
               <form
                 onSubmit={handleSend}
                 className="bg-white/50 backdrop-blur-sm border-t border-gray-200/50 px-6 py-4 md:px-4 md:py-3"
