@@ -8,6 +8,10 @@ function BookingForm() {
   const location = useLocation();
   const preselectedService = location.state?.preselectedService || "";
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
+
   const HOLIDAYS = [
     "2025-01-01",
     "2025-04-09",
