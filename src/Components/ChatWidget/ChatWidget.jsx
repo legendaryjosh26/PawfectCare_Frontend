@@ -23,32 +23,43 @@ function ChatWidget() {
 
   useEffect(scrollToBottom, [messages]);
 
+  // 1) Silent init: get conversation and join room even if widget is closed
   useEffect(() => {
-    if (!isOpen || conversation) return;
-
-    const init = async () => {
+    const initSilent = async () => {
       try {
-        setLoading(true);
-
         const convRes = await apiClient.get("/conversations/me");
         setConversation(convRes.data);
+        socket.emit("join_conversation", convRes.data.conversation_id);
+      } catch (e) {
+        console.error("Silent chat init error:", e);
+      }
+    };
+    initSilent();
 
+    return () => {
+      socket.off("new_message");
+      socket.off("typing");
+      socket.off("stop_typing");
+      socket.off("messages_read");
+    };
+  }, [apiClient, user?.user_id]);
+
+  // 2) Load messages when widget opens
+  useEffect(() => {
+    if (!isOpen || !conversation) return;
+
+    const loadMessages = async () => {
+      try {
+        setLoading(true);
         const msgRes = await apiClient.get(
-          `/conversations/${convRes.data.conversation_id}/messages`
+          `/conversations/${conversation.conversation_id}/messages`
         );
         const messagesData = msgRes.data || [];
         setMessages(messagesData);
 
-        const initialUnread = messagesData.filter((m) => {
-          const role = (m.sender_role || "").toLowerCase();
-          return role !== "user" && !m.is_read;
-        }).length;
-
-        setUnreadCount(initialUnread);
-        setHasUnreadMessages(initialUnread > 0);
-
+        // mark all as read when opening
         await apiClient.post(
-          `/conversations/${convRes.data.conversation_id}/read`
+          `/conversations/${conversation.conversation_id}/read`
         );
         setMessages((prev) =>
           prev.map((m) =>
@@ -57,91 +68,67 @@ function ChatWidget() {
         );
         setHasUnreadMessages(false);
         setUnreadCount(0);
-
-        socket.emit("join_conversation", convRes.data.conversation_id);
-
-        socket.off("new_message");
-        socket.off("typing");
-        socket.off("stop_typing");
-        socket.off("messages_read");
-
-        socket.on("new_message", (msg) => {
-          console.log("USER WIDGET new_message (init listener):", msg);
-          if (msg.conversation_id === convRes.data.conversation_id) {
-            setMessages((prev) => [...prev, msg]);
-
-            const role = (msg.sender_role || "").toLowerCase();
-            const isAdminSender = role !== "user";
-
-            if (!isOpen && isAdminSender) {
-              console.log("INCREMENT BADGE (init listener)");
-              setHasUnreadMessages(true);
-              setUnreadCount((c) => c + 1);
-            }
-          }
-        });
-
-        socket.on("typing", (data) => {
-          if (data.conversationId !== convRes.data.conversation_id) return;
-          const role = (data.sender_role || "").toLowerCase();
-          if (role === "admin") {
-            setIsAdminTyping(true);
-          }
-        });
-
-        socket.on("stop_typing", (data) => {
-          if (data.conversationId !== convRes.data.conversation_id) return;
-          const role = (data.sender_role || "").toLowerCase();
-          if (role === "admin") {
-            setIsAdminTyping(false);
-          }
-        });
-
-        socket.on("messages_read", (data) => {
-          if (data.conversationId !== convRes.data.conversation_id) return;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.sender_id === user?.user_id ? { ...m, is_read: 1 } : m
-            )
-          );
-        });
       } catch (err) {
-        console.error("Chat init error:", err);
+        console.error("Chat open load error:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    init();
+    loadMessages();
+  }, [isOpen, conversation, apiClient, user?.user_id]);
+
+  // 3) Global socket listeners (now user is always in the room)
+  useEffect(() => {
+    socket.off("new_message");
+    socket.off("typing");
+    socket.off("stop_typing");
+    socket.off("messages_read");
+
+    socket.on("new_message", (msg) => {
+      if (!conversation) return;
+      if (msg.conversation_id !== conversation.conversation_id) return;
+
+      const role = (msg.sender_role || "").toLowerCase();
+      const isAdminSender = role !== "user";
+
+      setMessages((prev) => [...prev, msg]);
+
+      if (!isOpen && isAdminSender) {
+        setHasUnreadMessages(true);
+        setUnreadCount((c) => c + 1);
+      }
+    });
+
+    socket.on("typing", (data) => {
+      if (!conversation) return;
+      if (data.conversationId !== conversation.conversation_id) return;
+      const role = (data.sender_role || "").toLowerCase();
+      if (role === "admin") setIsAdminTyping(true);
+    });
+
+    socket.on("stop_typing", (data) => {
+      if (!conversation) return;
+      if (data.conversationId !== conversation.conversation_id) return;
+      const role = (data.sender_role || "").toLowerCase();
+      if (role === "admin") setIsAdminTyping(false);
+    });
+
+    socket.on("messages_read", (data) => {
+      if (!conversation) return;
+      if (data.conversationId !== conversation.conversation_id) return;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.sender_id === user?.user_id ? { ...m, is_read: 1 } : m
+        )
+      );
+    });
 
     return () => {
       socket.off("new_message");
       socket.off("typing");
       socket.off("stop_typing");
       socket.off("messages_read");
-    };
-  }, [isOpen, conversation, apiClient, user?.user_id]);
-
-  useEffect(() => {
-    socket.on("new_message", (msg) => {
-      console.log("USER WIDGET new_message (global listener):", msg);
-      if (
-        conversation &&
-        msg.conversation_id === conversation.conversation_id
-      ) {
-        const role = (msg.sender_role || "").toLowerCase();
-        const isAdminSender = role !== "user";
-
-        if (!isOpen && isAdminSender) {
-          console.log("INCREMENT BADGE (global listener)");
-          setHasUnreadMessages(true);
-          setUnreadCount((c) => c + 1);
-        }
-      }
-    });
-
-    return () => {
-      socket.off("new_message");
     };
   }, [conversation, isOpen]);
 
@@ -196,8 +183,6 @@ function ChatWidget() {
 
   const closeChat = () => {
     setIsOpen(false);
-    setConversation(null);
-    setMessages([]);
   };
 
   const openChat = () => {
@@ -208,8 +193,11 @@ function ChatWidget() {
 
   return (
     <>
+      {/* FAB Button */}
       <button
-        onClick={hasUnreadMessages ? openChat : () => setIsOpen((p) => !p)}
+        onClick={
+          hasUnreadMessages ? openChat : () => setIsOpen((prev) => !prev)
+        }
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl
           bg-gradient-to-br from-[#560705] to-[#703736] text-white shadow-2xl
           hover:from-[#703736] hover:to-[#560705] active:scale-95
@@ -227,6 +215,7 @@ function ChatWidget() {
         {isOpen ? "×" : "💬"}
       </button>
 
+      {/* Backdrop for mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden"
@@ -234,8 +223,10 @@ function ChatWidget() {
         />
       )}
 
+      {/* Chat Panel */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-white shadow-2xl overflow-hidden w-full h-screen md:bottom-20 md:right-4 md:w-96 md:h-[500px] md:max-h-[80vh] md:inset-auto md:rounded-2xl">
+          {/* Header */}
           <div className="bg-gradient-to-r from-[#560705] to-[#703736] px-6 py-4 border-b border-[#560705]/20 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
@@ -256,6 +247,7 @@ function ChatWidget() {
             </button>
           </div>
 
+          {/* Body */}
           {loading && !conversation ? (
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="text-center">
@@ -269,6 +261,7 @@ function ChatWidget() {
             </div>
           ) : (
             <>
+              {/* Messages */}
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 md:px-4 md:py-3 bg-gradient-to-b from-gray-50/50 to-white">
                 {messages.map((m) => {
                   const isMe =
@@ -300,7 +293,7 @@ function ChatWidget() {
                             isMe ? "justify-end" : "justify-start"
                           }`}
                         >
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/60 backdrop-blur-sm shadow-sm">
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg_WHITE/60 backdrop-blur-sm shadow-sm">
                             {m.is_read ? "Seen" : "Sent"}
                           </span>
                         </div>
@@ -325,6 +318,7 @@ function ChatWidget() {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Input Form */}
               <form
                 onSubmit={handleSend}
                 className="bg-white/50 backdrop-blur-sm border-t border-gray-200/50 px-6 py-4 md:px-4 md:py-3"
