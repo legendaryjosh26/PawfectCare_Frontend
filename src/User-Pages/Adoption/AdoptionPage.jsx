@@ -8,58 +8,31 @@ import AdoptionConfirmationModal from "../../Components/Modals/AdoptionConfirmat
 import ChatWidget from "../../Components/ChatWidget/ChatWidget";
 import CategoryButtons from "../../Components/PetCategory/CategoryButtons";
 import PetLists from "../../Components/PetCategory/PetLists";
-import ScrollToTopOnce from "../../Components/PageTransition/ScrollToTopOnce";
 
 function AdoptionPage() {
   const location = useLocation();
   const [showAdoptionModal, setShowAdoptionModal] = useState(false);
-  const [isPageLoading, setIsPageLoading] = useState(true);
   // Default category is "All"
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedPet, setSelectedPet] = useState(null);
 
   const { token } = useAuth();
 
-  // Scroll to top + handle loading
   useEffect(() => {
-    // Increased delay for smooth UX (500ms minimum)
-    const loadTimer = setTimeout(() => {
-      setIsPageLoading(false);
-    }, 800); // Changed from 100ms to 500ms
+    let modalTimer;
 
-    // Modal logic
     if (location.state?.showAdoptionModal) {
       setShowAdoptionModal(true);
-      const timer = setTimeout(() => setShowAdoptionModal(false), 2000);
+      modalTimer = setTimeout(() => setShowAdoptionModal(false), 2000);
+
+      // clear history state so it doesn't reopen on back
       window.history.replaceState({}, document.title);
-      return () => clearTimeout(timer);
     }
 
-    return () => clearTimeout(loadTimer);
-  }, [location.pathname]);
-
-  if (isPageLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 transition-opacity duration-300">
-        <div className="flex flex-col items-center gap-6 p-8 animate-pulse">
-          <div className="w-20 h-20 bg-[#7c5e3b]/20 rounded-2xl flex items-center justify-center mb-4">
-            <Loader2 className="h-16 w-16 text-[#7c5e3b] animate-spin drop-shadow-md" />
-          </div>
-          <div className="space-y-2 text-center">
-            <div className="text-xl font-bold text-[#7c5e3b] tracking-wide">
-              Preparing Pets
-            </div>
-            <div className="text-lg text-[#7c5e3b]/80">
-              Loading adorable companions...
-            </div>
-          </div>
-          <div className="w-24 h-1 bg-gradient-to-r from-[#7c5e3b]/30 to-transparent rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[#7c5e3b] to-amber-500 animate-pulse w-3/4" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+    return () => {
+      if (modalTimer) clearTimeout(modalTimer);
+    };
+  }, [location.state]);
 
   return (
     <>

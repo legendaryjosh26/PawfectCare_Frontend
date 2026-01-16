@@ -1,32 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import DogAndCat from "../../assets/User-Page-Image/DogAndCatImage.png";
 import Footer from "../../Components/Footer/Footer";
-import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 import ChatWidget from "../../Components/ChatWidget/ChatWidget";
-import ScrollToTopOnce from "../../Components/PageTransition/ScrollToTopOnce";
 
 function AboutUsPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [isPageLoading, setIsPageLoading] = useState(true);
-  const { apiClient, token, user, isTokenChecking } = useAuth();
-
-  useEffect(() => {
-    // Wait for auth check + minimum delay for premium feel
-    const loadTimer = setTimeout(() => {
-      setIsPageLoading(false);
-    }, 500);
-
-    // Auth check after loading
-    if (!isTokenChecking && (!token || !user)) {
-      navigate("/", { replace: true });
-    }
-
-    return () => clearTimeout(loadTimer);
-  }, [token, user, isTokenChecking, navigate, location.pathname, apiClient]);
-
   const steps = [
     {
       title: "Browse a pet",
@@ -55,32 +31,8 @@ function AboutUsPage() {
     },
   ];
 
-  if (isPageLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 transition-opacity duration-300">
-        <div className="flex flex-col items-center gap-6 p-8 animate-pulse">
-          <div className="w-20 h-20 bg-[#7c5e3b]/20 rounded-2xl flex items-center justify-center mb-4">
-            <Loader2 className="h-16 w-16 text-[#7c5e3b] animate-spin drop-shadow-md" />
-          </div>
-          <div className="space-y-2 text-center">
-            <div className="text-xl font-bold text-[#7c5e3b] tracking-wide">
-              Preparing Pets
-            </div>
-            <div className="text-lg text-[#7c5e3b]/80">
-              Loading adorable companions...
-            </div>
-          </div>
-          <div className="w-24 h-1 bg-gradient-to-r from-[#7c5e3b]/30 to-transparent rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[#7c5e3b] to-amber-500 animate-pulse w-3/4" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
-      {/* <ScrollToTopOnce /> */}
       <div className="min-h-screen bg-gradient-to-b from-[#f9f7f7] to-white">
         {/* Hero Section */}
         <div className="relative">
