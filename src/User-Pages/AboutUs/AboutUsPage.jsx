@@ -80,7 +80,7 @@ function AboutUsPage() {
 
   return (
     <>
-      <ScrollToTopOnce />
+      {/* <ScrollToTopOnce /> */}
       <div className="min-h-screen bg-gradient-to-b from-[#f9f7f7] to-white">
         {/* Hero Section */}
         <div className="relative">

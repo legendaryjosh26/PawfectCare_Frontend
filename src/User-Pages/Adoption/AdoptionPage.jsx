@@ -63,7 +63,7 @@ function AdoptionPage() {
 
   return (
     <>
-      <ScrollToTopOnce />
+      {/* <ScrollToTopOnce/> */}
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
         {/* Hero Banner Section */}
         <div className="relative overflow-hidden">
