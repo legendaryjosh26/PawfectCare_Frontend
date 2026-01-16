@@ -15,9 +15,10 @@ function AboutUsPage() {
   const { apiClient, token, user, isTokenChecking } = useAuth();
 
   useEffect(() => {
-    // Always scroll to top first
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
 
+  useEffect(() => {
     // Wait for auth check + minimum delay for premium feel
     const loadTimer = setTimeout(() => {
       setIsPageLoading(false);
