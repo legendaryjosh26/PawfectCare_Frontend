@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { ScrollTop } from "../../Components/Hooks/ScrollTop/ScrollTop";
 import DogAndCat from "../../assets/User-Page-Image/DogAndCatImage.png";
 import Footer from "../../Components/Footer/Footer";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
@@ -13,10 +12,6 @@ function AboutUsPage() {
   const location = useLocation();
   const [isPageLoading, setIsPageLoading] = useState(true);
   const { apiClient, token, user, isTokenChecking } = useAuth();
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-  }, []);
 
   useEffect(() => {
     // Wait for auth check + minimum delay for premium feel
@@ -85,7 +80,6 @@ function AboutUsPage() {
 
   return (
     <>
-      <ScrollTop />
       <PageTransition>
         <div className="min-h-screen bg-gradient-to-b from-[#f9f7f7] to-white">
           {/* Hero Section */}

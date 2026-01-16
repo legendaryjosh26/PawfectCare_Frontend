@@ -3,7 +3,6 @@ import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import PawLogo from "../../assets/User-Page-Image/PawfectCareLogo.svg";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
-import { jwtDecode } from "jwt-decode";
 
 function UserLoginPage() {
   const [email, setEmail] = useState("");

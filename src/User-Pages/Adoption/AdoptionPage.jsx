@@ -8,7 +8,6 @@ import AdoptionConfirmationModal from "../../Components/Modals/AdoptionConfirmat
 import ChatWidget from "../../Components/ChatWidget/ChatWidget";
 import CategoryButtons from "../../Components/PetCategory/CategoryButtons";
 import PetLists from "../../Components/PetCategory/PetLists";
-import { ScrollTop } from "../../Components/Hooks/ScrollTop/ScrollTop";
 
 function AdoptionPage() {
   const location = useLocation();
@@ -22,9 +21,6 @@ function AdoptionPage() {
 
   // Scroll to top + handle loading
   useEffect(() => {
-    // Always scroll to top first
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-
     // Increased delay for smooth UX (500ms minimum)
     const loadTimer = setTimeout(() => {
       setIsPageLoading(false);
@@ -66,7 +62,6 @@ function AdoptionPage() {
 
   return (
     <>
-      <ScrollTop />
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
         {/* Hero Banner Section */}
         <div className="relative overflow-hidden">
