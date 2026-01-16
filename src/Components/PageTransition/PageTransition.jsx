@@ -1,11 +1,7 @@
-import React, { useLayoutEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 
 const PageTransition = ({ children }) => {
-  useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.98 }}

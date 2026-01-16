@@ -1,6 +1,6 @@
 // App.jsx
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import NotificationModal from "./Components/Modals/NotificationModal";
+
 import { AnimatePresence } from "framer-motion";
 import {
   DashboardRoute,

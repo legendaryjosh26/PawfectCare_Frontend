@@ -8,6 +8,7 @@ import AdoptionConfirmationModal from "../../Components/Modals/AdoptionConfirmat
 import ChatWidget from "../../Components/ChatWidget/ChatWidget";
 import CategoryButtons from "../../Components/PetCategory/CategoryButtons";
 import PetLists from "../../Components/PetCategory/PetLists";
+import ScrollToTopOnce from "../../Components/PageTransition/ScrollToTopOnce";
 
 function AdoptionPage() {
   const location = useLocation();
@@ -62,6 +63,7 @@ function AdoptionPage() {
 
   return (
     <>
+      <ScrollToTopOnce />
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
         {/* Hero Banner Section */}
         <div className="relative overflow-hidden">
