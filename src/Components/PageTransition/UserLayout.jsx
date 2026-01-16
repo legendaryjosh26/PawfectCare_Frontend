@@ -1,11 +1,10 @@
-import { useEffect } from "react";
-import TopNavUser from "../Navigation/TopNavUser";
+import { useLayoutEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
 export default function UserLayout() {
   const location = useLocation();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
