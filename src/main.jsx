@@ -4,6 +4,11 @@ import { AuthProvider } from "../src/Components/ServiceLayer/Context/authContext
 import App from "./App.jsx";
 import "./index.css";
 
+// disable browser scroll restoration
+if ("scrollRestoration" in window.history) {
+  window.history.scrollRestoration = "manual";
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <StrictMode>
     <AuthProvider>
