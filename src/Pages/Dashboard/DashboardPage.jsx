@@ -12,25 +12,7 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState(null);
 
-  const { apiClient, user, token, isTokenChecking, logout, setToken } =
-    useAuth();
-
-  const handleRefreshToken = useCallback(async () => {
-    if (!apiClient) return;
-    try {
-      const refreshRes = await apiClient.post(
-        "/users/refresh-token",
-        {},
-        { withCredentials: true }
-      );
-      setToken(refreshRes.data.access_token);
-      return true;
-    } catch (refreshErr) {
-      console.error("Dashboard refresh failed:", refreshErr);
-      logout();
-      return false;
-    }
-  }, [apiClient, setToken, logout]);
+  const { apiClient, user, token, isTokenChecking, logout } = useAuth();
 
   useEffect(() => {
     const initPage = async () => {

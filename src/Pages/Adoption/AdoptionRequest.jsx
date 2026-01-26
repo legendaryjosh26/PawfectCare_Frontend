@@ -289,7 +289,7 @@ function AdoptionRequest() {
                                   month: "short",
                                   day: "numeric",
                                   year: "numeric",
-                                }
+                                },
                               )
                             : "N/A"}
                         </td>
@@ -301,7 +301,7 @@ function AdoptionRequest() {
                                   month: "short",
                                   day: "numeric",
                                   year: "numeric",
-                                }
+                                },
                               )
                             : "-"}
                         </td>
@@ -417,7 +417,7 @@ function AdoptionRequest() {
                     <p className="text-base text-gray-900">
                       {selectedRequest.dateRequested
                         ? new Date(
-                            selectedRequest.dateRequested
+                            selectedRequest.dateRequested,
                           ).toLocaleDateString("en-US", {
                             month: "long",
                             day: "numeric",
