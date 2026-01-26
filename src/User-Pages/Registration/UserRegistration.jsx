@@ -218,7 +218,7 @@ function UserRegistrationPage() {
                 name="birthdate"
                 value={formData.birthdate}
                 onChange={handleChange}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition text-sm sm:text-base"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 sm:mr-4 mr-6 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition text-sm sm:text-base"
                 required
               />
               {formData.age > 0 && (
