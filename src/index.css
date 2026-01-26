@@ -21,3 +21,17 @@
 .animate-fade-in {
   animation: fade-in 0.3s ease-in-out;
 }
+
+.webkit-date-fix {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+.webkit-date-fix::-webkit-datetime-edit {
+  display: block;
+  padding: 0;
+}
+
+.webkit-date-fix::-webkit-calendar-picker-indicator {
+  margin-left: 4px;
+}
