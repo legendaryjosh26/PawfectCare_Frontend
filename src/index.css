@@ -25,13 +25,27 @@
 .webkit-date-fix {
   -webkit-appearance: none;
   -moz-appearance: textfield;
+  min-height: 50px; /* Explicit height to match your text inputs */
+  display: flex; /* Helps vertically center the text */
+  align-items: center;
 }
 
+/* Fix the internal text container height */
+.webkit-date-fix::-webkit-date-and-time-value {
+  min-height: 1.5em;
+  text-align: left; /* Ensures text doesn't center weirdly */
+}
+
+/* Keep these to reset the internal wrapper */
 .webkit-date-fix::-webkit-datetime-edit {
   display: block;
   padding: 0;
+  height: auto;
+  line-height: 1;
 }
 
 .webkit-date-fix::-webkit-calendar-picker-indicator {
-  margin-left: 4px;
+  margin-left: auto; /* Pushes icon to the right if you want */
+  margin-right: 10px;
 }
+
