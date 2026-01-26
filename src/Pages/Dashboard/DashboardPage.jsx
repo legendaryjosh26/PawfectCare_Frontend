@@ -21,12 +21,10 @@ function DashboardPage() {
         navigate("/admin/login", { replace: true });
         return;
       }
-      const refreshed = await handleRefreshToken();
-      if (!refreshed) return;
       await fetchDashboardData();
     };
     initPage();
-  }, [isTokenChecking, user, token, handleRefreshToken, navigate]);
+  }, [isTokenChecking, user, token, navigate]);
 
   const fetchDashboardData = async () => {
     try {
