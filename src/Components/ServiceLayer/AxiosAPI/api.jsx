@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: "https://backend-5lqs.onrender.com", // or your API base
+  baseURL: "https://pawfectcare-backend.onrender.com", // or your API base
   withCredentials: true, // crucial for cookie-based auth!
 });
 
