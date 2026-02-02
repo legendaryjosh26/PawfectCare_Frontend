@@ -15,7 +15,7 @@ import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 function ReportPage() {
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
-  const [loadingPage, setLoadingPage] = useState(true);
+  const [loadingPage, setLoadingPage] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [token, setToken] = useState(localStorage.getItem("token"));
