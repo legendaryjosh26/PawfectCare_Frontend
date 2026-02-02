@@ -17,7 +17,7 @@ function ReportPage() {
   const fetchReports = async () => {
     try {
       setLoadingPage(true);
-      const res = await apiClient.get("/process/report/raw", {
+      const res = await apiClient.get("/raw/report", {
         params: {
           from: dateRange.start,
           to: dateRange.end,
