@@ -7,7 +7,7 @@ import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable"; // uses autoTable(doc, options) API [web:5][web:21]
-import logo from "../../assets/OVSLogo.png"; // your logo
+import logo from "../../assets/Admin-Page-Image/OVSLogo.png"; // your logo
 
 function ReportPage() {
   const navigate = useNavigate();
