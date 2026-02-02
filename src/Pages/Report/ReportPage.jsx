@@ -6,8 +6,8 @@ import LoadingModal from "../../Components/Modals/LoadingModal";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import logo from "../../assets/OVSLogo.png"; // adjust path to your image
+import autoTable from "jspdf-autotable"; // uses autoTable(doc, options) API [web:5][web:21]
+import logo from "../../assets/OVSLogo.png"; // your logo
 
 function ReportPage() {
   const navigate = useNavigate();
@@ -118,7 +118,7 @@ function ReportPage() {
 
   const addPdfHeader = (doc, title) => {
     try {
-      doc.addImage(logo, "JPEG", 15, 10, 20, 20);
+      doc.addImage(logo, "PNG", 15, 10, 18, 18); // adjust size if needed [web:12]
     } catch (e) {
       console.warn("Logo load error:", e);
     }
