@@ -49,3 +49,25 @@
   margin-right: 10px;
 }
 
+@media print {
+  .no-print,
+  button,
+  nav {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  pre {
+    max-height: none !important;
+    overflow: visible !important;
+    white-space: pre-wrap;
+  }
+
+  * {
+    box-shadow: none !important;
+  }
+}
+

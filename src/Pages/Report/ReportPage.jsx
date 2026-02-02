@@ -1,8 +1,13 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Loader2 } from "lucide-react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import LoadingModal from "../../Components/Modals/LoadingModal";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
+
+/* ===================== HELPERS ===================== */
 
 function toCsvValue(v) {
   if (v === null || v === undefined) return "";
@@ -44,8 +49,11 @@ function jsonToCsv(flatRows) {
   return [header, ...lines].join("\n");
 }
 
+/* ===================== COMPONENT ===================== */
+
 function ReportPage() {
   const { apiClient, logout } = useAuth();
+  const reportRef = useRef(null);
 
   const [from, setFrom] = useState(() => {
     const d = new Date();
@@ -68,7 +76,7 @@ function ReportPage() {
       });
       setReport(res.data || null);
     } catch (err) {
-      console.error("Error fetching report:", err);
+      console.error(err);
       setReport(null);
       setError(
         err?.response?.data?.message ||
@@ -85,6 +93,8 @@ function ReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiClient]);
 
+  /* ===================== CSV DATA ===================== */
+
   const flatForCsv = useMemo(() => {
     if (!report) return [];
     const rows = [];
@@ -97,12 +107,8 @@ function ReportPage() {
   }, [report]);
 
   const overview = report?.overview || {};
-  const totalAppointments = overview.appointmentsInRange || 0;
-  const totalAdoptions = overview.adoptionsInRange || 0;
-  const pendingAppointments = overview.pendingAppointmentsInRange || 0;
-  const pendingAdoptions = overview.pendingAdoptionsInRange || 0;
-  const totalUsers = overview.totalUsers || 0;
-  const totalPets = overview.totalPets || 0;
+
+  /* ===================== ACTIONS ===================== */
 
   const handleGenerate = async () => {
     await fetchReport();
@@ -112,8 +118,11 @@ function ReportPage() {
     if (!report) return;
     setLoadingAction(true);
     try {
-      const name = `report_${from}_to_${to}.json`;
-      downloadBlob(name, JSON.stringify(report, null, 2), "application/json");
+      downloadBlob(
+        `report_${from}_to_${to}.json`,
+        JSON.stringify(report, null, 2),
+        "application/json",
+      );
     } finally {
       setLoadingAction(false);
     }
@@ -124,188 +133,125 @@ function ReportPage() {
     setLoadingAction(true);
     try {
       const csv = jsonToCsv(flatForCsv);
-      const name = `report_${from}_to_${to}.csv`;
-      downloadBlob(name, csv, "text/csv;charset=utf-8;");
+      downloadBlob(
+        `report_${from}_to_${to}.csv`,
+        csv,
+        "text/csv;charset=utf-8;",
+      );
     } finally {
       setLoadingAction(false);
     }
   };
 
-  // FULL PAGE LOADING (same vibe as appointments)
+  const handleDownloadPdf = async () => {
+    if (!reportRef.current) return;
+    setLoadingAction(true);
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`report_${from}_to_${to}.pdf`);
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  /* ===================== LOADING PAGE ===================== */
+
   if (loadingPage && !report) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 transition-opacity duration-300">
-        <div className="flex flex-col items-center gap-6 p-8 animate-pulse">
-          <div className="w-20 h-20 bg-[#7c5e3b]/20 rounded-2xl flex items-center justify-center mb-4">
-            <Loader2 className="h-16 w-16 text-[#7c5e3b] animate-spin drop-shadow-md" />
-          </div>
-          <div className="space-y-2 text-center">
-            <div className="text-xl font-bold text-[#7c5e3b] tracking-wide">
-              Preparing Reports
-            </div>
-            <div className="text-lg text-[#7c5e3b]/80">
-              Fetching clinic activity summary...
-            </div>
-          </div>
-          <div className="w-24 h-1 bg-gradient-to-r from-[#7c5e3b]/30 to-transparent rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[#7c5e3b] to-amber-500 animate-pulse w-3/4" />
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-12 h-12 animate-spin text-[#560705]" />
       </div>
     );
   }
 
+  /* ===================== UI ===================== */
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-screen-2xl mx-auto">
-        <TopNavAdmin handleSignOut={logout} />
+      <TopNavAdmin handleSignOut={logout} />
 
-        {/* Header + Filters */}
-        <div className="px-6 mb-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                  System Report
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Summary of appointments, adoptions, users, and pets for the
-                  selected date range.
-                </p>
-              </div>
+      <div className="max-w-screen-2xl mx-auto px-6 pb-10" ref={reportRef}>
+        {/* HEADER */}
+        <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+          <h2 className="text-2xl font-bold mb-1">System Report</h2>
+          <p className="text-sm text-gray-600">
+            Summary from {from} to {to}
+          </p>
 
-              <div className="flex flex-wrap items-end gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    From
-                  </label>
-                  <input
-                    type="date"
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#560705] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    To
-                  </label>
-                  <input
-                    type="date"
-                    value={to}
-                    onChange={(e) => setTo(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#560705] focus:border-transparent"
-                  />
-                </div>
+          {/* CONTROLS */}
+          <div className="flex flex-wrap gap-2 mt-4 no-print">
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            />
 
-                <button
-                  onClick={handleGenerate}
-                  className="px-4 py-2 bg-[#560705] text-white text-sm rounded-lg shadow-sm 
-                             hover:bg-[#3b0404] transition-colors active:scale-95"
-                >
-                  Generate
-                </button>
+            <button onClick={handleGenerate} className="btn-primary">
+              Generate
+            </button>
 
-                <button
-                  onClick={handleDownloadJson}
-                  disabled={!report || loadingAction}
-                  className="px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-sm
-                             hover:bg-gray-900 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  Download JSON
-                </button>
+            <button onClick={() => window.print()} className="btn-secondary">
+              Print / Save PDF
+            </button>
 
-                <button
-                  onClick={handleDownloadCsv}
-                  disabled={!report || loadingAction}
-                  className="px-3 py-2 bg-blue-600 text-white text-xs rounded-lg shadow-sm
-                             hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  Download CSV
-                </button>
-              </div>
-            </div>
+            <button onClick={handleDownloadPdf} className="btn-danger">
+              Download PDF
+            </button>
 
-            {/* KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="bg-indigo-50 rounded-lg p-4">
-                <p className="text-sm font-medium text-indigo-700 mb-1">
-                  Users
-                </p>
-                <p className="text-2xl font-bold text-indigo-900">
-                  {totalUsers}
-                </p>
-              </div>
-              <div className="bg-sky-50 rounded-lg p-4">
-                <p className="text-sm font-medium text-sky-700 mb-1">Pets</p>
-                <p className="text-2xl font-bold text-sky-900">{totalPets}</p>
-              </div>
-              <div className="bg-yellow-50 rounded-lg p-4">
-                <p className="text-sm font-medium text-yellow-700 mb-1">
-                  Appointments (range)
-                </p>
-                <p className="text-2xl font-bold text-yellow-900">
-                  {totalAppointments}
-                </p>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4">
-                <p className="text-sm font-medium text-green-700 mb-1">
-                  Adoptions (range)
-                </p>
-                <p className="text-2xl font-bold text-green-900">
-                  {totalAdoptions}
-                </p>
-              </div>
-              <div className="bg-orange-50 rounded-lg p-4">
-                <p className="text-sm font-medium text-orange-700 mb-1">
-                  Pending Appointments
-                </p>
-                <p className="text-2xl font-bold text-orange-900">
-                  {pendingAppointments}
-                </p>
-              </div>
-              <div className="bg-rose-50 rounded-lg p-4">
-                <p className="text-sm font-medium text-rose-700 mb-1">
-                  Pending Adoptions
-                </p>
-                <p className="text-2xl font-bold text-rose-900">
-                  {pendingAdoptions}
-                </p>
-              </div>
-            </div>
+            <button onClick={handleDownloadJson} className="btn-dark">
+              JSON
+            </button>
 
-            {error && (
-              <div className="mt-4 text-sm text-red-600 whitespace-pre-wrap">
-                {error}
-              </div>
-            )}
+            <button onClick={handleDownloadCsv} className="btn-blue">
+              CSV
+            </button>
           </div>
         </div>
 
-        {/* Raw JSON / Details */}
-        <div className="px-6 pb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-800">
-                Raw Report Data
-              </h3>
-              <span className="text-xs text-gray-500">
-                Range: {from} to {to}
-              </span>
+        {/* KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {Object.entries({
+            Users: overview.totalUsers,
+            Pets: overview.totalPets,
+            Appointments: overview.appointmentsInRange,
+            Adoptions: overview.adoptionsInRange,
+            "Pending Appointments": overview.pendingAppointmentsInRange,
+            "Pending Adoptions": overview.pendingAdoptionsInRange,
+          }).map(([label, value]) => (
+            <div key={label} className="bg-white rounded-lg p-4 shadow-sm">
+              <p className="text-sm text-gray-500">{label}</p>
+              <p className="text-2xl font-bold">{value ?? 0}</p>
             </div>
-            <div className="p-4">
-              {report ? (
-                <pre className="bg-[#0b1020] text-[#e6edf3] text-xs md:text-sm p-4 rounded-lg max-h-[500px] overflow-auto">
-                  {JSON.stringify(report, null, 2)}
-                </pre>
-              ) : (
-                <div className="py-12 text-center text-gray-500 text-sm">
-                  No report data available.
-                </div>
-              )}
-            </div>
-          </div>
+          ))}
         </div>
+
+        {/* RAW JSON */}
+        <div className="bg-white rounded-xl shadow-sm mt-6">
+          <div className="p-4 border-b text-sm font-semibold">
+            Raw Report Data
+          </div>
+          <pre className="p-4 text-xs overflow-auto max-h-[500px] bg-[#0b1020] text-white">
+            {JSON.stringify(report, null, 2)}
+          </pre>
+        </div>
+
+        {error && <div className="text-red-600 mt-4">{error}</div>}
       </div>
 
       <LoadingModal
