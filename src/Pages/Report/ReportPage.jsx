@@ -6,8 +6,8 @@ import LoadingModal from "../../Components/Modals/LoadingModal";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable"; // uses autoTable(doc, options) API [web:5][web:21]
-import logo from "../../assets/Admin-Page-Image/OVSLogo.png"; // your logo
+import autoTable from "jspdf-autotable";
+import logo from "../../assets/Admin-Page-Image/OVSLogo.png";
 
 function ReportPage() {
   const navigate = useNavigate();
@@ -116,50 +116,26 @@ function ReportPage() {
       new Date(r.dateAdopted).toDateString() === new Date().toDateString(),
   ).length;
 
-  // replace your current addPdfHeader with this
+  // Header used in both PDF exports
+  const addPdfHeader = (doc, title) => {
+    try {
+      // logo closer to text
+      doc.addImage(logo, "PNG", 60, 8, 18, 18);
+    } catch (e) {
+      console.warn("Logo addImage error:", e);
+    }
 
-  const addPdfHeader = async (doc, title, done) => {
-    const img = new Image();
-    img.src = "/OVSLogo.png";
+    doc.setFontSize(12);
+    doc.text("Office of Veterinary Services", 105, 18, { align: "center" });
 
-    img.onload = () => {
-      try {
-        // move logo to the left-center, nearer the text
-        // x = 60, y = 8, width 18, height 18 (tweak if needed)
-        doc.addImage(img, "PNG", 60, 8, 18, 18);
-      } catch (e) {
-        console.warn("Logo addImage error:", e);
-      }
+    doc.setFontSize(10);
+    doc.text("City of Tacurong, Province of Sultan Kudarat", 105, 24, {
+      align: "center",
+    });
 
-      // center text; y positions slightly lower so logo visually aligns
-      doc.setFontSize(12);
-      doc.text("Office of Veterinary Services", 105, 18, { align: "center" });
-
-      doc.setFontSize(10);
-      doc.text("City of Tacurong, Province of Sultan Kudarat", 105, 24, {
-        align: "center",
-      });
-
-      // "two tab spaces above Adoption report" == extra vertical gap
-      // previously ~30, now push it down a bit to create more space
-      doc.setFontSize(11);
-      doc.text(title, 105, 34, { align: "center" });
-
-      done();
-    };
-
-    img.onerror = () => {
-      console.warn("Logo failed to load, continuing without image");
-      doc.setFontSize(12);
-      doc.text("Office of Veterinary Services", 105, 18, { align: "center" });
-      doc.setFontSize(10);
-      doc.text("City of Tacurong, Province of Sultan Kudarat", 105, 24, {
-        align: "center",
-      });
-      doc.setFontSize(11);
-      doc.text(title, 105, 34, { align: "center" });
-      done();
-    };
+    // extra vertical space above report title
+    doc.setFontSize(11);
+    doc.text(title, 105, 34, { align: "center" });
   };
 
   const handleExportAdoptions = () => {
@@ -186,7 +162,7 @@ function ReportPage() {
     autoTable(doc, {
       head: [columns],
       body: rows,
-      startY: 38,
+      startY: 40, // below title
       styles: { fontSize: 9 },
     });
 
@@ -222,7 +198,7 @@ function ReportPage() {
     autoTable(doc, {
       head: [columns],
       body: rows,
-      startY: 38,
+      startY: 40,
       styles: { fontSize: 9 },
     });
 
