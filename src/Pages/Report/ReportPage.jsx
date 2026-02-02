@@ -120,7 +120,7 @@ function ReportPage() {
   const addPdfHeader = (doc, title) => {
     try {
       // logo closer to text
-      doc.addImage(logo, "PNG", 50, 8, 18, 18);
+      doc.addImage(logo, "PNG", 50, 12, 18, 18);
     } catch (e) {
       console.warn("Logo addImage error:", e);
     }
