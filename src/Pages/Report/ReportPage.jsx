@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Loader2,
-  Download,
-  Calendar,
-  Users,
-  DollarSign,
-  FileText,
-} from "lucide-react";
+import { Loader2, Download, Calendar, Users } from "lucide-react";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import LoadingModal from "../../Components/Modals/LoadingModal";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
@@ -30,8 +23,10 @@ function ReportPage() {
         },
       });
 
-      console.log(res);
-      const data = Array.isArray(res.data) ? res.data : res.data?.reports || [];
+      // assuming backend response: { approvedAdoptions: [...], approvedAppointments: [...], range: {...} }
+      const data = Array.isArray(res.data?.approvedAdoptions)
+        ? res.data.approvedAdoptions
+        : [];
       setReports(data);
     } catch (error) {
       console.error("Error fetching reports:", error);
@@ -49,32 +44,32 @@ function ReportPage() {
 
   // Filter reports based on search
   const filteredReports = reports.filter((report) => {
-    const reportName = (report.report_name || "").toLowerCase();
-    const generatedBy = (report.generated_by || "").toLowerCase();
+    const fullName = `${report.adopter_first_name || ""} ${
+      report.adopter_last_name || ""
+    }`.toLowerCase();
+    const petName = (report.pet_name || "").toLowerCase();
+    const petBreed = (report.pet_breed || "").toLowerCase();
+    const petType = (report.pet_type || "").toLowerCase();
     const status = (report.status || "").toLowerCase();
     const query = searchQuery.toLowerCase();
 
     return (
-      reportName.includes(query) ||
-      generatedBy.includes(query) ||
+      fullName.includes(query) ||
+      petName.includes(query) ||
+      petBreed.includes(query) ||
+      petType.includes(query) ||
       status.includes(query)
     );
   });
 
-  // Get stats
+  // Stats
   const totalReports = reports.length;
   const todayReports = reports.filter(
-    (r) => new Date(r.created_at).toDateString() === new Date().toDateString(),
+    (r) => new Date(r.dateAdopted).toDateString() === new Date().toDateString(),
   ).length;
-  const weeklyReports = reports.filter((r) => {
-    const reportDate = new Date(r.created_at);
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    return reportDate >= weekAgo;
-  }).length;
 
   const handleExport = () => {
-    // Implement CSV export or PDF generation
+    // Implement CSV export or PDF generation here
     console.log("Exporting reports...");
   };
 
@@ -116,8 +111,8 @@ function ReportPage() {
                   Reports Dashboard
                 </h2>
                 <p className="text-sm text-gray-600">
-                  View and manage all generated reports (
-                  {filteredReports.length} reports)
+                  View approved adoption reports ({filteredReports.length}{" "}
+                  records)
                 </p>
               </div>
 
@@ -126,7 +121,7 @@ function ReportPage() {
                 <div className="relative flex-1 sm:w-64">
                   <input
                     type="text"
-                    placeholder="Search reports..."
+                    placeholder="Search by name, pet, status..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg 
@@ -203,7 +198,7 @@ function ReportPage() {
                   <Calendar className="h-8 w-8 text-blue-600" />
                   <div className="ml-3">
                     <p className="text-sm font-medium text-blue-800">
-                      Total Reports
+                      Total Approved Adoptions
                     </p>
                     <p className="text-2xl font-bold text-blue-900">
                       {totalReports}
@@ -215,7 +210,9 @@ function ReportPage() {
                 <div className="flex items-center">
                   <Users className="h-8 w-8 text-green-600" />
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-green-800">Today</p>
+                    <p className="text-sm font-medium text-green-800">
+                      Adopted Today
+                    </p>
                     <p className="text-2xl font-bold text-green-900">
                       {todayReports}
                     </p>
@@ -234,22 +231,19 @@ function ReportPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Report Name
+                      Full Name
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Generated By
+                      Pet Name
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Date Created
+                      Pet Breed
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Pet Type
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      File Size
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -257,76 +251,57 @@ function ReportPage() {
                   {filteredReports.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={5}
                         className="px-6 py-12 text-center text-gray-500"
                       >
                         {searchQuery
-                          ? "No reports found matching your search"
-                          : "No reports available. Generate your first report!"}
+                          ? "No records found matching your search"
+                          : "No records available."}
                       </td>
                     </tr>
                   ) : (
-                    filteredReports.map((report) => (
-                      <tr
-                        key={report.report_id}
-                        className="hover:bg-gray-50 transition-colors duration-150"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900 truncate max-w-48">
-                            {report.report_name || "Unnamed Report"}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-700 font-medium">
-                            {report.generated_by || "System"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
-                          {new Date(report.created_at).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          {report.status === "completed" && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Completed
+                    filteredReports.map((report, index) => {
+                      const fullName = `${report.adopter_first_name || ""} ${
+                        report.adopter_last_name || ""
+                      }`.trim();
+
+                      return (
+                        <tr
+                          key={report.adoption_id || index}
+                          className="hover:bg-gray-50 transition-colors duration-150"
+                        >
+                          <td className="px-6 py-4">
+                            <span className="font-medium text-gray-900">
+                              {fullName || "N/A"}
                             </span>
-                          )}
-                          {report.status === "generating" && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              Generating
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-700">
+                            {report.pet_name || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-700">
+                            {report.pet_breed || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-700">
+                            {report.pet_type || "N/A"}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                report.status === "Approved"
+                                  ? "bg-green-100 text-green-800"
+                                  : report.status === "Pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : report.status === "Rejected"
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {report.status || "Unknown"}
                             </span>
-                          )}
-                          {report.status === "failed" && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              Failed
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
-                          {report.file_size
-                            ? `${(report.file_size / 1024).toFixed(1)} KB`
-                            : "N/A"}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors p-1">
-                              <FileText className="h-4 w-4" />
-                            </button>
-                            <button className="text-green-600 hover:text-green-800 text-sm font-medium transition-colors p-1">
-                              <Download className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
