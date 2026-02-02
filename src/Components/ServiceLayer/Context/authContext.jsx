@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
         const refreshRes = await apiClient.post(
           REFRESH_TOKEN_URL,
           {},
-          { withCredentials: true }
+          { withCredentials: true },
         );
 
         const newToken = refreshRes.data.access_token;
@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }) => {
               {},
               {
                 withCredentials: true,
-              }
+              },
             );
             const newToken = response.data.access_token;
             setToken(newToken);
@@ -111,7 +111,7 @@ export const AuthProvider = ({ children }) => {
           }
         }
         return Promise.reject(error);
-      }
+      },
     );
   }, [token]);
 

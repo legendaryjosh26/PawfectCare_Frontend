@@ -116,21 +116,50 @@ function ReportPage() {
       new Date(r.dateAdopted).toDateString() === new Date().toDateString(),
   ).length;
 
-  const addPdfHeader = (doc, title) => {
-    try {
-      doc.addImage(logo, "PNG", 15, 10, 18, 18); // adjust size if needed [web:12]
-    } catch (e) {
-      console.warn("Logo load error:", e);
-    }
+  // replace your current addPdfHeader with this
 
-    doc.setFontSize(12);
-    doc.text("Notre Dame of Tacurong College", 105, 16, { align: "center" });
-    doc.setFontSize(10);
-    doc.text("City of Tacurong, Province of Sultan Kudarat", 105, 22, {
-      align: "center",
-    });
-    doc.setFontSize(11);
-    doc.text(title, 105, 30, { align: "center" });
+  const addPdfHeader = async (doc, title, done) => {
+    const img = new Image();
+    img.src = "/OVSLogo.png";
+
+    img.onload = () => {
+      try {
+        // move logo to the left-center, nearer the text
+        // x = 60, y = 8, width 18, height 18 (tweak if needed)
+        doc.addImage(img, "PNG", 60, 8, 18, 18);
+      } catch (e) {
+        console.warn("Logo addImage error:", e);
+      }
+
+      // center text; y positions slightly lower so logo visually aligns
+      doc.setFontSize(12);
+      doc.text("Office of Veterinary Services", 105, 18, { align: "center" });
+
+      doc.setFontSize(10);
+      doc.text("City of Tacurong, Province of Sultan Kudarat", 105, 24, {
+        align: "center",
+      });
+
+      // "two tab spaces above Adoption report" == extra vertical gap
+      // previously ~30, now push it down a bit to create more space
+      doc.setFontSize(11);
+      doc.text(title, 105, 34, { align: "center" });
+
+      done();
+    };
+
+    img.onerror = () => {
+      console.warn("Logo failed to load, continuing without image");
+      doc.setFontSize(12);
+      doc.text("Office of Veterinary Services", 105, 18, { align: "center" });
+      doc.setFontSize(10);
+      doc.text("City of Tacurong, Province of Sultan Kudarat", 105, 24, {
+        align: "center",
+      });
+      doc.setFontSize(11);
+      doc.text(title, 105, 34, { align: "center" });
+      done();
+    };
   };
 
   const handleExportAdoptions = () => {
@@ -366,7 +395,7 @@ function ReportPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Full Name
+                      Adopter Name
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Pet Name
