@@ -18,8 +18,7 @@ function ReportPage() {
   const [loadingPage, setLoadingPage] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
-  const [token, setToken] = useState(localStorage.getItem("token"));
-  const { apiClient, logout } = useAuth();
+  const { apiClient, token, logout } = useAuth();
 
   const fetchReports = async () => {
     try {
