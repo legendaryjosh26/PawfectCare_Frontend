@@ -23,7 +23,7 @@ function ReportPage() {
 
   const fetchReports = async () => {
     try {
-      // setLoadingPage(true);
+      setLoadingPage(true);
       const res = await apiClient.get("/raw/report", {
         params: {
           startDate: dateRange.start,
@@ -196,7 +196,7 @@ function ReportPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                 <div className="flex items-center">
                   <Calendar className="h-8 w-8 text-blue-600" />
@@ -217,19 +217,6 @@ function ReportPage() {
                     <p className="text-sm font-medium text-green-800">Today</p>
                     <p className="text-2xl font-bold text-green-900">
                       {todayReports}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
-                <div className="flex items-center">
-                  <DollarSign className="h-8 w-8 text-purple-600" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-purple-800">
-                      This Week
-                    </p>
-                    <p className="text-2xl font-bold text-purple-900">
-                      {weeklyReports}
                     </p>
                   </div>
                 </div>
