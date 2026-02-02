@@ -7,7 +7,7 @@ import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import logo from "../../assets/image.jpg"; // adjust path to your image
+import logo from "../../assets/OVSLogo.png"; // adjust path to your image
 
 function ReportPage() {
   const navigate = useNavigate();
