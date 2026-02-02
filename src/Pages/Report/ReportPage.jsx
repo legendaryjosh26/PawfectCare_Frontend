@@ -5,10 +5,9 @@ import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import LoadingModal from "../../Components/Modals/LoadingModal";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
-// PDF libs
 import jsPDF from "jspdf";
-import "jspdf-autotable";
-import logo from "../../assets/Admin-Page-Image/OVSLogo.png"; // adjust path to your image
+import autoTable from "jspdf-autotable";
+import logo from "../../assets/image.jpg"; // adjust path to your image
 
 function ReportPage() {
   const navigate = useNavigate();
@@ -17,7 +16,6 @@ function ReportPage() {
 
   const [loadingPage, setLoadingPage] = useState(true);
 
-  // separate filters
   const [adoptionSearch, setAdoptionSearch] = useState("");
   const [appointmentSearch, setAppointmentSearch] = useState("");
 
@@ -79,7 +77,6 @@ function ReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // Filtered lists
   const filteredAdoptions = adoptionReports.filter((report) => {
     const fullName = `${report.adopter_first_name || ""} ${
       report.adopter_last_name || ""
@@ -112,7 +109,6 @@ function ReportPage() {
     );
   });
 
-  // Stats from adoptions
   const totalAdoptions = adoptionReports.length;
   const todayAdoptions = adoptionReports.filter(
     (r) =>
@@ -120,17 +116,15 @@ function ReportPage() {
       new Date(r.dateAdopted).toDateString() === new Date().toDateString(),
   ).length;
 
-  // COMMON: draw header
   const addPdfHeader = (doc, title) => {
-    // logo
     try {
       doc.addImage(logo, "JPEG", 15, 10, 20, 20);
     } catch (e) {
-      console.warn("Logo issue:", e);
+      console.warn("Logo load error:", e);
     }
-    // text
+
     doc.setFontSize(12);
-    doc.text("Office of Veterinary Services", 105, 16, { align: "center" });
+    doc.text("Notre Dame of Tacurong College", 105, 16, { align: "center" });
     doc.setFontSize(10);
     doc.text("City of Tacurong, Province of Sultan Kudarat", 105, 22, {
       align: "center",
@@ -160,7 +154,7 @@ function ReportPage() {
       r.status || "Approved",
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [columns],
       body: rows,
       startY: 38,
@@ -196,7 +190,7 @@ function ReportPage() {
       a.status || "Accepted",
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [columns],
       body: rows,
       startY: 38,
@@ -247,7 +241,6 @@ function ReportPage() {
                 </p>
               </div>
 
-              {/* Simple stats (adoptions) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
                   <div className="flex items-center">
@@ -288,7 +281,6 @@ function ReportPage() {
             </h3>
           </div>
 
-          {/* Filters for adoptions */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-3 p-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1">
@@ -448,7 +440,6 @@ function ReportPage() {
             </h3>
           </div>
 
-          {/* Filters for appointments */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-3 p-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="relative flex-1 sm:w-64">
