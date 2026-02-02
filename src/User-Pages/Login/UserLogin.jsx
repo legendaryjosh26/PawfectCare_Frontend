@@ -62,7 +62,7 @@ function UserLoginPage() {
           break;
       }
     } catch (err) {
-      setError(err?.response?.data?.message || "Login failed");
+      setError("Email or password invalid.");
     } finally {
       setLoading(false);
     }
