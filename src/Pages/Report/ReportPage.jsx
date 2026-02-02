@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -9,6 +9,8 @@ import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
 function ReportPage() {
   const { apiClient, logout } = useAuth();
+
+  // This ref will wrap ONLY the part you want in the PDF / print
   const reportRef = useRef(null);
 
   const [from, setFrom] = useState(() => {
@@ -16,6 +18,7 @@ function ReportPage() {
     d.setDate(d.getDate() - 30);
     return d.toISOString().slice(0, 10);
   });
+
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   const [loadingPage, setLoadingPage] = useState(true);
@@ -23,7 +26,7 @@ function ReportPage() {
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
 
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     try {
       setLoadingPage(true);
       setError("");
@@ -41,26 +44,30 @@ function ReportPage() {
     } finally {
       setLoadingPage(false);
     }
-  };
+  }, [apiClient, from, to]);
 
+  // Fetch whenever date range changes
   useEffect(() => {
     fetchReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiClient]);
+  }, [fetchReport]);
 
   const overview = report?.overview || {};
-
-  /* ===================== PDF ===================== */
 
   const handleDownloadPdf = async () => {
     if (!reportRef.current) return;
 
     setLoadingAction(true);
     try {
-      const canvas = await html2canvas(reportRef.current, { scale: 2 });
-      const imgData = canvas.toDataURL("image/png");
+      // Hide interactive controls during capture if needed (Tailwind example below)
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        scrollY: -window.scrollY,
+      });
 
+      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
+
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
@@ -71,8 +78,6 @@ function ReportPage() {
     }
   };
 
-  /* ===================== LOADING ===================== */
-
   if (loadingPage && !report) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -81,12 +86,14 @@ function ReportPage() {
     );
   }
 
-  /* ===================== UI ===================== */
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <TopNavAdmin handleSignOut={logout} />
+      {/* Hide nav when printing */}
+      <div className="print:hidden">
+        <TopNavAdmin handleSignOut={logout} />
+      </div>
 
+      {/* This wrapper is what will be printed and captured to PDF */}
       <div className="max-w-screen-2xl mx-auto px-6 pb-10" ref={reportRef}>
         {/* HEADER */}
         <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
@@ -95,7 +102,8 @@ function ReportPage() {
             Report period: {from} to {to}
           </p>
 
-          <div className="flex flex-wrap gap-3 mt-4 no-print">
+          {/* Controls - hidden on print */}
+          <div className="flex flex-wrap gap-3 mt-4 print:hidden">
             <input
               type="date"
               value={from}
