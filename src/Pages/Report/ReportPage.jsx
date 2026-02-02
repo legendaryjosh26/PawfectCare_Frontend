@@ -5,6 +5,11 @@ import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import LoadingModal from "../../Components/Modals/LoadingModal";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 
+// PDF libs
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import logo from "../../assets/image.jpg"; // adjust path to your image
+
 function ReportPage() {
   const navigate = useNavigate();
   const [adoptionReports, setAdoptionReports] = useState([]);
@@ -70,7 +75,6 @@ function ReportPage() {
 
   useEffect(() => {
     if (!token) return;
-    // initial load: both reports (no filters)
     Promise.all([fetchAdoptionReports(), fetchAppointmentReports()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -116,12 +120,90 @@ function ReportPage() {
       new Date(r.dateAdopted).toDateString() === new Date().toDateString(),
   ).length;
 
+  // COMMON: draw header
+  const addPdfHeader = (doc, title) => {
+    // logo
+    try {
+      doc.addImage(logo, "JPEG", 15, 10, 20, 20);
+    } catch (e) {
+      console.warn("Logo issue:", e);
+    }
+    // text
+    doc.setFontSize(12);
+    doc.text("Notre Dame of Tacurong College", 105, 16, { align: "center" });
+    doc.setFontSize(10);
+    doc.text("City of Tacurong, Province of Sultan Kudarat", 105, 22, {
+      align: "center",
+    });
+    doc.setFontSize(11);
+    doc.text(title, 105, 30, { align: "center" });
+  };
+
   const handleExportAdoptions = () => {
-    console.log("Exporting adoption reports...");
+    const doc = new jsPDF("p", "mm", "a4");
+
+    addPdfHeader(doc, "Adoption Report");
+
+    const columns = [
+      "Full Name",
+      "Pet Name",
+      "Pet Breed",
+      "Pet Type",
+      "Status",
+    ];
+    const rows = filteredAdoptions.map((r) => [
+      `${r.adopter_first_name || ""} ${r.adopter_last_name || ""}`.trim() ||
+        "N/A",
+      r.pet_name || "N/A",
+      r.pet_breed || "N/A",
+      r.pet_type || "N/A",
+      r.status || "Approved",
+    ]);
+
+    doc.autoTable({
+      head: [columns],
+      body: rows,
+      startY: 38,
+      styles: { fontSize: 9 },
+    });
+
+    doc.save("adoption-report.pdf");
   };
 
   const handleExportAppointments = () => {
-    console.log("Exporting appointment reports...");
+    const doc = new jsPDF("p", "mm", "a4");
+
+    addPdfHeader(doc, "Appointment Report");
+
+    const columns = ["Owner Name", "Service", "Date", "Time", "Status"];
+    const rows = filteredAppointments.map((a) => [
+      `${a.first_name || ""} ${a.last_name || ""}`.trim(),
+      a.appointment_type || "N/A",
+      a.appointment_date
+        ? new Date(a.appointment_date).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
+        : "N/A",
+      a.timeSchedule
+        ? new Date(`1970-01-01T${a.timeSchedule}`).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "N/A",
+      a.status || "Accepted",
+    ]);
+
+    doc.autoTable({
+      head: [columns],
+      body: rows,
+      startY: 38,
+      styles: { fontSize: 9 },
+    });
+
+    doc.save("appointment-report.pdf");
   };
 
   if (loadingPage) {
