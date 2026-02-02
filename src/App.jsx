@@ -7,6 +7,7 @@ import {
   AdoptionRequestRoute,
   AppointmentPageRoute,
   MessagesPageRoute,
+  ReportPageRoute,
 } from "./Routes/AdminRoutes/AdminRoutes";
 import {
   UserLoginRoute,
@@ -30,6 +31,7 @@ const routers = createBrowserRouter([
   UserBookingFormRoute,
   UserForgotPasswordRoute,
   UserAdoptionFormRoute,
+  ReportPageRoute,
 ]);
 
 function App() {

@@ -14,6 +14,7 @@ function TopNavAdmin({ handleSignOut }) {
     { name: "Adoptions", path: "/admin/adoption" },
     { name: "Appointments", path: "/admin/appointment" },
     { name: "Messages", path: "/admin/message" },
+    { name: "Reports", path: "/admin/reports" },
   ];
 
   return (

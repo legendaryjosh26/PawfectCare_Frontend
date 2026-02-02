@@ -221,7 +221,6 @@ function UserRegistrationPage() {
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition text-sm sm:text-base webkit-date-fix"
                 required
               />
-
               {formData.age > 0 && (
                 <p className="text-xs text-gray-500 mt-1.5">
                   Age: {formData.age} years
