@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -6,50 +6,6 @@ import html2canvas from "html2canvas";
 import TopNavAdmin from "../../Components/Navigation/TopNavAdmin";
 import LoadingModal from "../../Components/Modals/LoadingModal";
 import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
-
-/* ===================== HELPERS ===================== */
-
-function toCsvValue(v) {
-  if (v === null || v === undefined) return "";
-  if (typeof v === "object") return JSON.stringify(v).replaceAll('"', '""');
-  return String(v).replaceAll('"', '""');
-}
-
-function downloadBlob(filename, content, mime) {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function flattenRows(section, rows) {
-  return (rows || []).map((r) => ({ section, ...r }));
-}
-
-function jsonToCsv(flatRows) {
-  if (!flatRows.length) return "";
-
-  const keys = Array.from(
-    flatRows.reduce((set, row) => {
-      Object.keys(row || {}).forEach((k) => set.add(k));
-      return set;
-    }, new Set()),
-  );
-
-  const header = keys.map((k) => `"${k.replaceAll('"', '""')}"`).join(",");
-  const lines = flatRows.map((row) =>
-    keys.map((k) => `"${toCsvValue(row?.[k])}"`).join(","),
-  );
-
-  return [header, ...lines].join("\n");
-}
-
-/* ===================== COMPONENT ===================== */
 
 function ReportPage() {
   const { apiClient, logout } = useAuth();
@@ -76,7 +32,6 @@ function ReportPage() {
       });
       setReport(res.data || null);
     } catch (err) {
-      console.error(err);
       setReport(null);
       setError(
         err?.response?.data?.message ||
@@ -93,68 +48,19 @@ function ReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiClient]);
 
-  /* ===================== CSV DATA ===================== */
-
-  const flatForCsv = useMemo(() => {
-    if (!report) return [];
-    const rows = [];
-    if (report.overview) rows.push({ section: "overview", ...report.overview });
-    rows.push(...flattenRows("adoptionByStatus", report.adoptionByStatus));
-    rows.push(...flattenRows("adoptionsDaily", report.adoptionsDaily));
-    rows.push(...flattenRows("appointmentsDaily", report.appointmentsDaily));
-    rows.push(...flattenRows("appointmentsByType", report.appointmentsByType));
-    return rows;
-  }, [report]);
-
   const overview = report?.overview || {};
 
-  /* ===================== ACTIONS ===================== */
-
-  const handleGenerate = async () => {
-    await fetchReport();
-  };
-
-  const handleDownloadJson = () => {
-    if (!report) return;
-    setLoadingAction(true);
-    try {
-      downloadBlob(
-        `report_${from}_to_${to}.json`,
-        JSON.stringify(report, null, 2),
-        "application/json",
-      );
-    } finally {
-      setLoadingAction(false);
-    }
-  };
-
-  const handleDownloadCsv = () => {
-    if (!flatForCsv.length) return;
-    setLoadingAction(true);
-    try {
-      const csv = jsonToCsv(flatForCsv);
-      downloadBlob(
-        `report_${from}_to_${to}.csv`,
-        csv,
-        "text/csv;charset=utf-8;",
-      );
-    } finally {
-      setLoadingAction(false);
-    }
-  };
+  /* ===================== PDF ===================== */
 
   const handleDownloadPdf = async () => {
     if (!reportRef.current) return;
+
     setLoadingAction(true);
     try {
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-      });
-
+      const canvas = await html2canvas(reportRef.current, { scale: 2 });
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
 
+      const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
@@ -165,7 +71,7 @@ function ReportPage() {
     }
   };
 
-  /* ===================== LOADING PAGE ===================== */
+  /* ===================== LOADING ===================== */
 
   if (loadingPage && !report) {
     return (
@@ -186,78 +92,126 @@ function ReportPage() {
         <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
           <h2 className="text-2xl font-bold mb-1">System Report</h2>
           <p className="text-sm text-gray-600">
-            Summary from {from} to {to}
+            Report period: {from} to {to}
           </p>
 
-          {/* CONTROLS */}
-          <div className="flex flex-wrap gap-2 mt-4 no-print">
+          <div className="flex flex-wrap gap-3 mt-4 no-print">
             <input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
+              className="border rounded-lg px-3 py-2 text-sm"
             />
             <input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
+              className="border rounded-lg px-3 py-2 text-sm"
             />
 
-            <button onClick={handleGenerate} className="btn-primary">
+            <button
+              onClick={fetchReport}
+              className="px-4 py-2 bg-[#560705] text-white rounded-lg text-sm"
+            >
               Generate
             </button>
 
-            <button onClick={() => window.print()} className="btn-secondary">
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm"
+            >
               Print / Save PDF
             </button>
 
-            <button onClick={handleDownloadPdf} className="btn-danger">
+            <button
+              onClick={handleDownloadPdf}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm"
+            >
               Download PDF
             </button>
-
-            <button onClick={handleDownloadJson} className="btn-dark">
-              JSON
-            </button>
-
-            <button onClick={handleDownloadCsv} className="btn-blue">
-              CSV
-            </button>
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {Object.entries({
-            Users: overview.totalUsers,
-            Pets: overview.totalPets,
-            Appointments: overview.appointmentsInRange,
-            Adoptions: overview.adoptionsInRange,
-            "Pending Appointments": overview.pendingAppointmentsInRange,
-            "Pending Adoptions": overview.pendingAdoptionsInRange,
-          }).map(([label, value]) => (
-            <div key={label} className="bg-white rounded-lg p-4 shadow-sm">
-              <p className="text-sm text-gray-500">{label}</p>
-              <p className="text-2xl font-bold">{value ?? 0}</p>
+        {/* KPI TABLE */}
+        <div className="bg-white rounded-xl shadow-sm mb-6">
+          <div className="px-6 py-4 border-b font-semibold text-sm">
+            Overview Summary
+          </div>
+          <table className="w-full text-sm border-collapse">
+            <tbody>
+              {[
+                ["Total Users", overview.totalUsers],
+                ["Total Pets", overview.totalPets],
+                ["Appointments (Range)", overview.appointmentsInRange],
+                ["Adoptions (Range)", overview.adoptionsInRange],
+                ["Pending Appointments", overview.pendingAppointmentsInRange],
+                ["Pending Adoptions", overview.pendingAdoptionsInRange],
+              ].map(([label, value]) => (
+                <tr key={label} className="border-b">
+                  <td className="px-6 py-3 font-medium bg-gray-50 w-1/2">
+                    {label}
+                  </td>
+                  <td className="px-6 py-3">{value ?? 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ADOPTIONS BY STATUS */}
+        {report?.adoptionByStatus?.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm mb-6">
+            <div className="px-6 py-4 border-b font-semibold text-sm">
+              Adoptions by Status
             </div>
-          ))}
-        </div>
-
-        {/* RAW JSON */}
-        <div className="bg-white rounded-xl shadow-sm mt-6">
-          <div className="p-4 border-b text-sm font-semibold">
-            Raw Report Data
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-6 py-3 text-left">Status</th>
+                  <th className="px-6 py-3 text-left">Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.adoptionByStatus.map((row, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="px-6 py-3">{row.status}</td>
+                    <td className="px-6 py-3">{row.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <pre className="p-4 text-xs overflow-auto max-h-[500px] bg-[#0b1020] text-white">
-            {JSON.stringify(report, null, 2)}
-          </pre>
-        </div>
+        )}
+
+        {/* DAILY APPOINTMENTS */}
+        {report?.appointmentsDaily?.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm mb-6">
+            <div className="px-6 py-4 border-b font-semibold text-sm">
+              Daily Appointments
+            </div>
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-6 py-3 text-left">Date</th>
+                  <th className="px-6 py-3 text-left">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.appointmentsDaily.map((row, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="px-6 py-3">{row.date}</td>
+                    <td className="px-6 py-3">{row.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {error && <div className="text-red-600 mt-4">{error}</div>}
       </div>
 
-      <LoadingModal
-        isOpen={loadingAction}
-        message="Preparing file for download..."
-      />
+      <LoadingModal isOpen={loadingAction} message="Preparing PDF..." />
     </div>
   );
 }
