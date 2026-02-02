@@ -9,33 +9,59 @@ function ReportPage() {
   const navigate = useNavigate();
   const [adoptionReports, setAdoptionReports] = useState([]);
   const [appointmentReports, setAppointmentReports] = useState([]);
+
   const [loadingPage, setLoadingPage] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+
+  // separate filters
+  const [adoptionSearch, setAdoptionSearch] = useState("");
+  const [appointmentSearch, setAppointmentSearch] = useState("");
+
+  const [adoptionRange, setAdoptionRange] = useState({ from: "", to: "" });
+  const [appointmentRange, setAppointmentRange] = useState({
+    from: "",
+    to: "",
+  });
+
   const { apiClient, token, logout } = useAuth();
 
-  const fetchReports = async () => {
+  const fetchAdoptionReports = async () => {
     try {
       setLoadingPage(true);
-      const res = await apiClient.get("/raw/report", {
+      const res = await apiClient.get("/report/adoption", {
         params: {
-          from: dateRange.start,
-          to: dateRange.end,
+          from: adoptionRange.from,
+          to: adoptionRange.to,
         },
       });
 
       const adoptions = Array.isArray(res.data?.approvedAdoptions)
         ? res.data.approvedAdoptions
         : [];
+      setAdoptionReports(adoptions);
+    } catch (error) {
+      console.error("Error fetching adoption reports:", error);
+      setAdoptionReports([]);
+    } finally {
+      setLoadingPage(false);
+    }
+  };
+
+  const fetchAppointmentReports = async () => {
+    try {
+      setLoadingPage(true);
+      const res = await apiClient.get("/report/appointment", {
+        params: {
+          from: appointmentRange.from,
+          to: appointmentRange.to,
+        },
+      });
+
       const appointments = Array.isArray(res.data?.approvedAppointments)
         ? res.data.approvedAppointments
         : [];
-
-      setAdoptionReports(adoptions);
       setAppointmentReports(appointments);
     } catch (error) {
-      console.error("Error fetching reports:", error);
-      setAdoptionReports([]);
+      console.error("Error fetching appointment reports:", error);
       setAppointmentReports([]);
     } finally {
       setLoadingPage(false);
@@ -43,10 +69,11 @@ function ReportPage() {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchReports();
-    }
-  }, [token, dateRange]);
+    if (!token) return;
+    // initial load: both reports (no filters)
+    Promise.all([fetchAdoptionReports(), fetchAppointmentReports()]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   // Filtered lists
   const filteredAdoptions = adoptionReports.filter((report) => {
@@ -57,7 +84,7 @@ function ReportPage() {
     const petBreed = (report.pet_breed || "").toLowerCase();
     const petType = (report.pet_type || "").toLowerCase();
     const status = (report.status || "").toLowerCase();
-    const query = searchQuery.toLowerCase();
+    const query = adoptionSearch.toLowerCase();
 
     return (
       fullName.includes(query) ||
@@ -72,7 +99,7 @@ function ReportPage() {
     const fullName = `${a.first_name || ""} ${a.last_name || ""}`.toLowerCase();
     const service = (a.appointment_type || "").toLowerCase();
     const status = (a.status || "").toLowerCase();
-    const query = searchQuery.toLowerCase();
+    const query = appointmentSearch.toLowerCase();
 
     return (
       fullName.includes(query) ||
@@ -81,7 +108,7 @@ function ReportPage() {
     );
   });
 
-  // Stats (example: based on adoptions)
+  // Stats from adoptions
   const totalAdoptions = adoptionReports.length;
   const todayAdoptions = adoptionReports.filter(
     (r) =>
@@ -89,8 +116,12 @@ function ReportPage() {
       new Date(r.dateAdopted).toDateString() === new Date().toDateString(),
   ).length;
 
-  const handleExport = () => {
-    console.log("Exporting reports...");
+  const handleExportAdoptions = () => {
+    console.log("Exporting adoption reports...");
+  };
+
+  const handleExportAppointments = () => {
+    console.log("Exporting appointment reports...");
   };
 
   if (loadingPage) {
@@ -121,7 +152,7 @@ function ReportPage() {
       <div className="max-w-screen-2xl mx-auto">
         <TopNavAdmin handleSignOut={logout} />
 
-        {/* Header + controls */}
+        {/* Global header */}
         <div className="px-6 mb-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -134,13 +165,57 @@ function ReportPage() {
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              {/* Simple stats (adoptions) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                  <div className="flex items-center">
+                    <Calendar className="h-7 w-7 text-blue-600" />
+                    <div className="ml-3">
+                      <p className="text-xs font-medium text-blue-800">
+                        Total Approved Adoptions
+                      </p>
+                      <p className="text-xl font-bold text-blue-900">
+                        {totalAdoptions}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+                  <div className="flex items-center">
+                    <Users className="h-7 w-7 text-green-600" />
+                    <div className="ml-3">
+                      <p className="text-xs font-medium text-green-800">
+                        Adopted Today
+                      </p>
+                      <p className="text-xl font-bold text-green-900">
+                        {todayAdoptions}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Adoption Reports Section */}
+        <div className="px-6 pb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Adoption Reports
+            </h3>
+          </div>
+
+          {/* Filters for adoptions */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-3 p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1">
                 <div className="relative flex-1 sm:w-64">
                   <input
                     type="text"
-                    placeholder="Search by name, pet, service, status..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by adopter, pet, status..."
+                    value={adoptionSearch}
+                    onChange={(e) => setAdoptionSearch(e.target.value)}
                     className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg 
                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                   />
@@ -158,91 +233,59 @@ function ReportPage() {
                     />
                   </svg>
                 </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    From
+                  </label>
+                  <input
+                    type="date"
+                    value={adoptionRange.from}
+                    onChange={(e) =>
+                      setAdoptionRange({
+                        ...adoptionRange,
+                        from: e.target.value,
+                      })
+                    }
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    To
+                  </label>
+                  <input
+                    type="date"
+                    value={adoptionRange.to}
+                    onChange={(e) =>
+                      setAdoptionRange({
+                        ...adoptionRange,
+                        to: e.target.value,
+                      })
+                    }
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
                 <button
-                  onClick={handleExport}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg 
-                             hover:bg-blue-700 transition-all active:scale-95 whitespace-nowrap"
+                  onClick={fetchAdoptionReports}
+                  className="px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg 
+                             hover:bg-blue-700 transition-all active:scale-95 whitespace-nowrap mt-2 sm:mt-6"
                 >
-                  <Download className="h-4 w-4" />
+                  Filter
+                </button>
+                <button
+                  onClick={handleExportAdoptions}
+                  className="px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg 
+                             hover:bg-gray-800 transition-all active:scale-95 whitespace-nowrap mt-2 sm:mt-6"
+                >
+                  <Download className="h-4 w-4 inline-block mr-1" />
                   Export
                 </button>
               </div>
             </div>
-
-            {/* Date filter */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  From
-                </label>
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, start: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  To
-                </label>
-                <input
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, end: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                onClick={fetchReports}
-                className="px-6 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg 
-                           hover:bg-blue-700 transition-all active:scale-95 self-end whitespace-nowrap"
-              >
-                Filter
-              </button>
-            </div>
-
-            {/* Simple stats (adoptions) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                <div className="flex items-center">
-                  <Calendar className="h-8 w-8 text-blue-600" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-blue-800">
-                      Total Approved Adoptions
-                    </p>
-                    <p className="text-2xl font-bold text-blue-900">
-                      {totalAdoptions}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                <div className="flex items-center">
-                  <Users className="h-8 w-8 text-green-600" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-green-800">
-                      Adopted Today
-                    </p>
-                    <p className="text-2xl font-bold text-green-900">
-                      {todayAdoptions}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
-        </div>
 
-        {/* Adoption Reports Table */}
-        <div className="px-6 pb-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
-            Adoption Reports
-          </h3>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -315,11 +358,93 @@ function ReportPage() {
           </div>
         </div>
 
-        {/* Appointment Reports Table */}
+        {/* Appointment Reports Section */}
         <div className="px-6 pb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
-            Appointment Reports
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Appointment Reports
+            </h3>
+          </div>
+
+          {/* Filters for appointments */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-3 p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="relative flex-1 sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Search by owner, service, status..."
+                  value={appointmentSearch}
+                  onChange={(e) => setAppointmentSearch(e.target.value)}
+                  className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg 
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+                <svg
+                  className="absolute left-3 top-3.5 h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    From
+                  </label>
+                  <input
+                    type="date"
+                    value={appointmentRange.from}
+                    onChange={(e) =>
+                      setAppointmentRange({
+                        ...appointmentRange,
+                        from: e.target.value,
+                      })
+                    }
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    To
+                  </label>
+                  <input
+                    type="date"
+                    value={appointmentRange.to}
+                    onChange={(e) =>
+                      setAppointmentRange({
+                        ...appointmentRange,
+                        to: e.target.value,
+                      })
+                    }
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <button
+                  onClick={fetchAppointmentReports}
+                  className="px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg 
+                             hover:bg-blue-700 transition-all active:scale-95 whitespace-nowrap mt-2 sm:mt-6"
+                >
+                  Filter
+                </button>
+                <button
+                  onClick={handleExportAppointments}
+                  className="px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg 
+                             hover:bg-gray-800 transition-all active:scale-95 whitespace-nowrap mt-2 sm:mt-6"
+                >
+                  <Download className="h-4 w-4 inline-block mr-1" />
+                  Export
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
