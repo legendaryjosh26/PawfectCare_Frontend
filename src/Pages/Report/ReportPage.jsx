@@ -8,7 +8,7 @@ import { useAuth } from "../../Components/ServiceLayer/Context/authContext";
 // PDF libs
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import logo from "../../assets/image.jpg"; // adjust path to your image
+import logo from "../../assets/Admin-Page-Image/OVSLogo.png"; // adjust path to your image
 
 function ReportPage() {
   const navigate = useNavigate();
@@ -130,7 +130,7 @@ function ReportPage() {
     }
     // text
     doc.setFontSize(12);
-    doc.text("Notre Dame of Tacurong College", 105, 16, { align: "center" });
+    doc.text("Office of Veterinary Services", 105, 16, { align: "center" });
     doc.setFontSize(10);
     doc.text("City of Tacurong, Province of Sultan Kudarat", 105, 22, {
       align: "center",
