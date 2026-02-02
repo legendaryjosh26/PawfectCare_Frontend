@@ -63,7 +63,7 @@ function ReportPage() {
     try {
       setLoadingPage(true);
       setError("");
-      const res = await apiClient.get("/raw/reports", {
+      const res = await apiClient.get("/raw/report", {
         params: { from, to },
       });
       setReport(res.data || null);
