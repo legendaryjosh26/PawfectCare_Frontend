@@ -144,7 +144,7 @@ function ReportPage() {
     addPdfHeader(doc, "Adoption Report");
 
     const columns = [
-      "Full Name",
+      "Adopter Name",
       "Pet Name",
       "Pet Breed",
       "Pet Type",
